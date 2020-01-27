@@ -7,26 +7,7 @@
 
 namespace alex {
 
-struct tree {
-    int tag = 0;
-    std::map<char,struct tree> sub;
-} *root = nullptr;
-
-struct command_desc {
-    std::string name;
-    std::string args;
-    std::function<bool(vstack&, const chainz<json>&)> proc;
-};
-
-const std::map<int,command_desc> commands = {
-    { 1, (command_desc){ name: "end", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.perform = false; return true;}} },
-    { 2, (command_desc){ name: "drop", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.skip = true; return true;}} },
-    { 3, (command_desc){ name: "stay", proc: []( vstack& stack, const chainz<json>& args ) -> bool{return true;}} },
-    { 4, (command_desc){ name: "into", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.target_state = (long)args[0];return true;}} },
-    { 5, (command_desc){ name: "goto", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.target_state = (long)args[0]; stack.input = false;return true;}} },
-    { 6, (command_desc){ name: "accept+", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.skip = true; stack.results << std::tuple((long)args[0], stack.buf + (char)stack.pre); stack.buf.clear(); return false;}} },
-    { 7, (command_desc){ name: "accept-", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.input = false; if( stack.buf.size() ) stack.results << std::tuple((long)args[0], stack.buf); stack.buf.clear(); return false;}} },
-};
+tree* root = nullptr;
 
 void init() {
     if( root ) return;
@@ -96,13 +77,18 @@ diagram diagram::compile( std::istream& is ) {
                 case ' ':case '\t':case '\r': case '\n': break;
                 case ',': var.states.insert(var.state); state = 1; break;
                 case '(': var.multi_input = true; var.states.insert(var.state); state = 4; break;
-                case '0' ... '9': var.multi_input = false; var.states.insert(var.state); state = 4; stay = true; break;
-                default: state = -3; break;
+                default: var.multi_input = false; var.states.insert(var.state); state = 4; stay = true; break;
             } break;
             case 4: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
-                case '*': var.input = 256; state = 7; break;
+                case 'l': var.input = 'a'; var.range = 'z'; state = 11; break;
+                case 'u': var.input = 'A'; var.range = 'Z'; state = 11; break;
+                case 'd': var.input = '0'; var.range = '9'; state = 11; break;
+                case 's': var.inputs.insert({' ','\n','\t','\r'}); var.input = ' '; state = 7; break;
                 case 'e': var.input = -1; state = 7; break;
+                case '*': var.input = -2; state = 7; break;
+                case '-': var.input = -3; state = 7; break;
+                case '>': var.input = -4; state = 7; break;
                 case '0' ... '9': var.input = pre - '0'; state = 6; break;
                 case '\'': state = 1024; target = 5; stay = true; break;
                 case ')': if( var.multi_input ) var.states.clear(), state = 1; else state = -4; break;
@@ -161,12 +147,13 @@ diagram diagram::compile( std::istream& is ) {
                     // diagram.store(std::cout);
                     if( var.multi_cmd ) (state = 12), (stay = true);
                     else if( var.multi_input ) (var.inputs.clear()), (state = 4), (stay = true);
-                    else (var.states.clear()), (state = 1),(stay = true);
+                    else (var.inputs.clear()), (var.states.clear()), (state = 1),(stay = true);
                 } 
                 else if( auto ind = args[params.size()]; ind == 'i' ) (stay = true), (state = 15);
                 else if( ind == 's' ) (stay = true), (state = 18);
                 else if( ind == 'a' ) (stay = true), (state = 21);
                 else if( ind == 'l' ) (stay = true), (state = 22);
+                else if( ind == 'n' ) (stay = true), (state = 24);
                 else state = -14;
                 break;
             case 15: switch( pre ) {
@@ -220,6 +207,11 @@ diagram diagram::compile( std::istream& is ) {
                 case 'a' ... 'z': case 'A' ... 'Z': ps += pre; break;
                 default: params << ps; state = 14; break;
             } break;
+            case 24: switch( pre ) {
+                case ' ': case '\t': case '\r': case '\n': break;
+                case 'a' ... 'z': case 'A' ... 'Z': ps.clear(); stay = true; state = 23; break;
+                default: state = -24; break;
+            } break;
 
             case 1024: switch( pre ) {
                 case '\'': escape = false;state = 1025;break;
@@ -269,7 +261,7 @@ bool diagram::store( std::ostream& os ) {
     for( auto [state, rules] : *this ) {
         for( auto [input,prog] : rules ) {
             for( auto [cmd, args] : prog ) {
-                os << state << " " << input << " " << cmd << " ";
+                os << state << " " << input << " " << cmd << ": " << commands.at(cmd).name << " ";
                 for( auto arg : args ) os << arg.toJsonString() << " ";
                 os << std::endl;
             }
@@ -284,9 +276,10 @@ context::context( const alex::diagram& d ):diag(d) {
 }
 
 bool context::initiate() {
-    a = b = c = d = json(json::null);
+    var.clear();
     if( mem ) delete[] mem;
     mem = nullptr;
+    memlen = 0;
     target_state = 1;
     if( diag.count(1) ) state = &diag.at(1);
     else return false;
@@ -301,22 +294,51 @@ tokens context::perform( std::istream& is , std::ostream& os ) {
     }
     tokens results;
 
+    std::set<int> trace;
+
     while( target_state >= 1 ) {
         pre = is.peek();
-        auto vs = vstack{ a: a, b: b, c: c, d: d, mem: mem, pre: pre, target_state: target_state, buf: buf, results: results, os: os, perform: true, input: true, skip: false};
+        auto vs = vstack{ var: var, mem: mem, memlen: memlen, pre: pre, target_state: target_state, buf: buf, results: results, os: os, perform: true, input: true, skip: false};
 
-        if( state->count(pre) ) {
-            for( auto [cmd, args] : state->at(pre) ) {
-                if( !commands.count(cmd) ) throw std::runtime_error("error ("+std::to_string(line)+":"+std::to_string(column)+"): command "+std::to_string(cmd)+" not found");
+        var["buf"] = buf;
+        var["pre"] = (long)pre;
+        var["state"] = (long)target_state;
+        var["line"] = (long)line;
+        var["column"] = (long)column;
+
+        auto run = [&]( int input ) {
+            os << "\tinput: " << input << "(" << (char)input << ")" << std::endl;
+            for( auto [cmd, args] : state->at(input) ) {
+                if( !commands.count(cmd) ) throw std::runtime_error("command "+std::to_string(cmd)+" not found");
+                os << "\t\t" << commands.at(cmd).name << " ";
+                for( auto arg : args ) os << arg.toJsonString() << " ";
+                os << std::endl;
                 if( commands.at(cmd).proc(vs, args) ) break;
             }
-        } else if( state->count(256) ) {
-            for( auto [cmd, args] : state->at(256) ) {
-                if( !commands.count(cmd) ) throw std::runtime_error("error ("+std::to_string(line)+":"+std::to_string(column)+"): command "+std::to_string(cmd)+" not found");
-                if( commands.at(cmd).proc(vs, args) ) break;
+        };
+
+        try {
+            if( !diag.count(target_state) )
+                throw std::runtime_error("state " + std::to_string(target_state) + " not found");
+            
+            if( state != &diag.at(target_state) ) {
+                state = &diag.at(target_state);
+                os << "state: " << std::to_string(target_state) << std::endl;
+                if( state->count(-4) ) run(-4);
+            } else {
+                state = &diag.at(target_state);
             }
-        } else {
-            throw std::runtime_error("error ("+std::to_string(line)+":"+std::to_string(column)+"): invalid input "+std::to_string(pre));
+
+            if( !trace.count(target_state) ) {
+                if( state->count(-3) ) run(-3);
+                trace.insert(target_state);
+            }
+            
+            if( state->count(pre) ) run(pre);
+            else if( state->count(-2) ) run(-2);
+            else throw std::runtime_error("invalid input "+std::to_string(pre));
+        } catch( std::exception& e ) {
+            throw std::runtime_error("[error (" + std::to_string(line) + ":" + std::to_string(column) + ")]: " + e.what());
         }
         if( !vs.perform or pre == EOF ) break;
 
@@ -326,9 +348,6 @@ tokens context::perform( std::istream& is , std::ostream& os ) {
             else column += 1;
             is.get();
         }
-
-        if( !diag.count(target_state) ) throw std::runtime_error("state " + std::to_string(target_state) + " not found");
-        state = &diag.at(target_state);
     }
 
     return results;

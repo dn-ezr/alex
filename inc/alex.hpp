@@ -27,8 +27,9 @@ class diagram : public std::map<int, rules> {
 };
 
 struct vstack {
-    json& a,b,c,d;
+    std::map<std::string,json>& var;
     char*& mem;
+    int& memlen;
     const int pre;
     int& target_state;
     std::string& buf;
@@ -39,6 +40,19 @@ struct vstack {
     bool skip;
 };
 
+struct tree {
+    int tag = 0;
+    std::map<char,struct tree> sub;
+};
+extern tree *root;
+
+struct command_desc {
+    std::string name;
+    std::string args;
+    std::function<bool(vstack&, const chainz<json>&)> proc;
+};
+extern const std::map<int,command_desc> commands;
+
 class context {
 
     private:
@@ -46,8 +60,9 @@ class context {
         int target_state = 0;
         const diagram& diag;
 
-        json a,b,c,d;
+        std::map<std::string,json> var;
         char* mem = nullptr;
+        int memlen = 0;
 
         int pre = -1;
         int line, column;
