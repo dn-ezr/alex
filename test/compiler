@@ -1,0 +1,28 @@
+1 (
+    'a' ~ 'z', 'A' ~ 'Z' ( accept- 2 goto 2 )
+    '0' ~ '9' ( accept- 2 goto 3)
+    ' ', '\t', '\n', '\r' stay
+    * ( accept- 2 goto 4 )
+    e ( accept- 2 end)
+)
+
+2 (
+    'a' ~ 'z', 'A' ~'Z' stay
+    * ( accept- 1 goto 1 )
+    e ( accept- 1 end)
+)
+
+3 (
+    '0' ~ '9' stay
+    * ( accept- 3 goto 1 )
+    e ( accept- 3 end)
+)
+
+4 (
+    * stay
+    'a' ~ 'z', 
+    'A' ~ 'Z', 
+    '0' ~ '9', 
+    ' ', '\t', '\n', '\r' ( accept- 4 goto 1 )
+    e ( accept- 4 end)
+)

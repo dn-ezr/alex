@@ -3,6 +3,7 @@
 
 #include "alex.hpp"
 #include <set>
+#include <functional>
 
 namespace alex {
 
@@ -14,15 +15,17 @@ struct tree {
 struct command_desc {
     std::string name;
     std::string args;
+    std::function<bool(vstack&, const chainz<json>&)> proc;
 };
 
 const std::map<int,command_desc> commands = {
-    { 1, { name: "end"} },
-    { 2, { name: "drop"} },
-    { 3, { name: "stay"} },
-    { 4, { name: "into", args: "i"} },
-    { 5, { name: "goto", args: "i"} },
-    { 6, { name: "accept", args: "i"} },
+    { 1, (command_desc){ name: "end", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.perform = false; return true;}} },
+    { 2, (command_desc){ name: "drop", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.skip = true; return true;}} },
+    { 3, (command_desc){ name: "stay", proc: []( vstack& stack, const chainz<json>& args ) -> bool{return true;}} },
+    { 4, (command_desc){ name: "into", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.target_state = (long)args[0];return true;}} },
+    { 5, (command_desc){ name: "goto", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.target_state = (long)args[0]; stack.input = false;return true;}} },
+    { 6, (command_desc){ name: "accept+", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.skip = true; stack.results << std::tuple((long)args[0], stack.buf + (char)stack.pre); stack.buf.clear(); return false;}} },
+    { 7, (command_desc){ name: "accept-", args: "i", proc: []( vstack& stack, const chainz<json>& args ) -> bool{stack.input = false; if( stack.buf.size() ) stack.results << std::tuple((long)args[0], stack.buf); stack.buf.clear(); return false;}} },
 };
 
 void init() {
@@ -33,11 +36,21 @@ void init() {
         for( auto c : cmd.name ) node = &node->sub[c];
         node->tag = code;
     }
+    std::function<void(const tree*,int)> dump = [&]( const tree* node, int space ) {
+        for( auto [key,sub] : node->sub ) {
+            for( int i = 0; i < space; i++ ) std::cout << " ";
+            std::cout << key;
+            if( sub.tag ) std::cout << " " << sub.tag;
+            std::cout << std::endl;
+            dump(&sub, space+1);
+        }
+    };
+    // dump(root,0);
 }
 
-diagram compile( std::istream& is ) {
+diagram diagram::compile( std::istream& is ) {
     diagram diagram;
-    init();
+    alex::init();
 
     int line = 1;
     int column = 1;
@@ -80,17 +93,20 @@ diagram compile( std::istream& is ) {
                 default: stay = true; state = 3; break;
             } break;
             case 3: switch( pre ) {
-                case ' ':case '\t':case '\r': case '\n': var.states.insert(var.state); state = 3;break;
+                case ' ':case '\t':case '\r': case '\n': break;
                 case ',': var.states.insert(var.state); state = 1; break;
                 case '(': var.multi_input = true; var.states.insert(var.state); state = 4; break;
-                case '0' ... '9': var.multi_input = false; var.states.insert(var.state); state = 4; break;
+                case '0' ... '9': var.multi_input = false; var.states.insert(var.state); state = 4; stay = true; break;
                 default: state = -3; break;
             } break;
             case 4: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
                 case '*': var.input = 256; state = 7; break;
+                case 'e': var.input = -1; state = 7; break;
                 case '0' ... '9': var.input = pre - '0'; state = 6; break;
                 case '\'': state = 1024; target = 5; stay = true; break;
+                case ')': if( var.multi_input ) var.states.clear(), state = 1; else state = -4; break;
+                default: state = -4; break;
             } break;
             case 5: var.input = ascii; state = 7; stay = true; break;
             case 6: switch( pre ) {
@@ -101,7 +117,8 @@ diagram compile( std::istream& is ) {
                 case ' ': case '\t': case '\r': case '\n': break;
                 case '~': state = 8; break;
                 case ',': var.inputs.insert(var.input); state = 4; break;
-                default: var.inputs.insert(var.input); state = 12; break;
+                case '(': var.multi_cmd = true; var.inputs.insert(var.input); state = 12; break;
+                default: var.multi_cmd = false; var.inputs.insert(var.input); state = 12; stay = true; break;
             } break;
             case 8: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
@@ -114,18 +131,21 @@ diagram compile( std::istream& is ) {
                 default: stay = true; state = 11; break;
             } break;
             case 11: switch( pre ) {
+                case ' ': case '\t': case '\r': case '\n': break;
+                case ',': for( int i = var.input; i <= var.range; i++ ) var.inputs.insert(i); state = 4; break;
                 case '(': var.multi_cmd = true; for( int i = var.input; i <= var.range; i++ ) var.inputs.insert(i); state = 12; break;
                 default: var.multi_cmd = false; for( int i = var.input; i <= var.range; i++ ) var.inputs.insert(i); state = 12; stay = true; break;
             } break;
             case 12: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
                 default: node = root; state = 13; stay = true; break;
-                case ')': 
+                case ')':
                     if( var.multi_cmd )
-                        if( var.multi_input ) (var.inputs.clear()), (state = 4), (stay = true);
-                        else (var.states.clear()), (state = 1), (stay = true);
-                    else if( var.multi_input ) (var.inputs.clear()), (state = 4), (stay = true);
+                        if( var.multi_input ) (var.inputs.clear()), (state = 4);
+                        else (var.states.clear()), (state = 1);
+                    else if( var.multi_input ) (var.states.clear()), (state = 1);
                     else state = -12;
+                    break;
             } break;
             case 13:
                 if( node->sub.count(pre) ) node = &node->sub.at(pre);
@@ -134,7 +154,11 @@ diagram compile( std::istream& is ) {
                 break;
             case 14:
                 if( params.size() >= args.size() ) {
-                    for( auto state : var.states ) for( auto input : var.inputs ) diagram[state][input] << std::tuple{var.code, params};
+                    for( auto state : var.states ) 
+                        for( auto input : var.inputs ) 
+                            diagram[state][input] << instruction(var.code, params);
+                    params.clear();
+                    // diagram.store(std::cout);
                     if( var.multi_cmd ) (state = 12), (stay = true);
                     else if( var.multi_input ) (var.inputs.clear()), (state = 4), (stay = true);
                     else (var.states.clear()), (state = 1),(stay = true);
@@ -148,7 +172,7 @@ diagram compile( std::istream& is ) {
             case 15: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
                 case '-': pf = -1; pi = 0; state = 16; break;
-                case '0' ... '9': pf = 1; pi = 0; state = 17; break;
+                case '0' ... '9': pf = 1; pi = pre - '0'; state = 17; break;
                 case '\'': pf = 1; target = 16; stay = true; state = 1024; break;
                 default: state = -15; break;
             } break;
@@ -236,13 +260,78 @@ diagram compile( std::istream& is ) {
     }
 
     if( state < 0 )
-        throw std::runtime_error("error(" + std::to_string(state) + ") at " + std::to_string(line) + ":" + std::to_string(column) );
+        throw std::runtime_error("error(" + std::to_string(state) + ") at " + std::to_string(line) + ":" + std::to_string(column) + " preview: " + (char)is.peek() );
 
     return diagram;
 }
 
-context::context( const alex::diagram& d ):diagram(d) {
+bool diagram::store( std::ostream& os ) {
+    for( auto [state, rules] : *this ) {
+        for( auto [input,prog] : rules ) {
+            for( auto [cmd, args] : prog ) {
+                os << state << " " << input << " " << cmd << " ";
+                for( auto arg : args ) os << arg.toJsonString() << " ";
+                os << std::endl;
+            }
+        }
+    }
+    os << std::endl;
+    return true;
+}
 
+context::context( const alex::diagram& d ):diag(d) {
+
+}
+
+bool context::initiate() {
+    a = b = c = d = json(json::null);
+    if( mem ) delete[] mem;
+    mem = nullptr;
+    target_state = 1;
+    if( diag.count(1) ) state = &diag.at(1);
+    else return false;
+    line = column = 1;
+    buf.clear();
+    return true;
+}
+
+tokens context::perform( std::istream& is , std::ostream& os ) {
+    if( !initiate() ) {
+        throw std::runtime_error("failed to initiate");
+    }
+    tokens results;
+
+    while( target_state >= 1 ) {
+        pre = is.peek();
+        auto vs = vstack{ a: a, b: b, c: c, d: d, mem: mem, pre: pre, target_state: target_state, buf: buf, results: results, os: os, perform: true, input: true, skip: false};
+
+        if( state->count(pre) ) {
+            for( auto [cmd, args] : state->at(pre) ) {
+                if( !commands.count(cmd) ) throw std::runtime_error("error ("+std::to_string(line)+":"+std::to_string(column)+"): command "+std::to_string(cmd)+" not found");
+                if( commands.at(cmd).proc(vs, args) ) break;
+            }
+        } else if( state->count(256) ) {
+            for( auto [cmd, args] : state->at(256) ) {
+                if( !commands.count(cmd) ) throw std::runtime_error("error ("+std::to_string(line)+":"+std::to_string(column)+"): command "+std::to_string(cmd)+" not found");
+                if( commands.at(cmd).proc(vs, args) ) break;
+            }
+        } else {
+            throw std::runtime_error("error ("+std::to_string(line)+":"+std::to_string(column)+"): invalid input "+std::to_string(pre));
+        }
+        if( !vs.perform or pre == EOF ) break;
+
+        if( vs.input ) {
+            if( !vs.skip ) buf += pre;
+            if( pre == '\n' ) line += column = 1;
+            else column += 1;
+            is.get();
+        }
+
+        if( !diag.count(target_state) ) throw std::runtime_error("state " + std::to_string(target_state) + " not found");
+        state = &diag.at(target_state);
+    }
+
+    return results;
 }
 
 }
