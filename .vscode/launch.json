@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/alex",
-            "args": ["test/compiler", "test/input"],
+            "args": ["test/lexical"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

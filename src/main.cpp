@@ -5,21 +5,20 @@
 #include "alex.hpp"
 
 int main( int argc, char **argv ) {
-    if( argc < 3 ) return 1;
+    if( argc < 2 ) return 1;
     auto is = std::ifstream(argv[1]);
-    auto diagram = alex::diagram::compile( is );
-    auto input = std::ifstream(argv[2]);
-
-    auto context = alex::context(diagram);
-    std::cout << "--------[PROGRAM]--------" << std::endl;
-    diagram.store(std::cout);
-    std::cout << "--------[OUTPUT]--------" << std::endl;
-    auto tokens = context.perform( input, std::cout );
-    std::cout << "--------[TOKENS]--------" << std::endl;
-    for( auto [id,str] : tokens ) {
-        std::cout << "( " << id << ", " << str << " )" << std::endl;
+    auto lex = alex::lexical_rules::compile(is);
+    std::cout << "[--------LEXICAL--------]" << std::endl;
+    for( auto [id,rule] : lex ) {
+        std::cout << id << ' ' << rule.name << " = /";
+        rule.match.print(std::cout);
+        std::cout << "/";
+        rule.suffix.print(std::cout);
+        std::cout << "/" << std::endl;
     }
-    return 0;
+    auto diagram = lex.compile();
+    std::cout << "[--------FSM--------]" << std::endl;
+    diagram.store( std::cout );
 }
 
 #endif
