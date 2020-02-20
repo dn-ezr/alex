@@ -120,10 +120,10 @@ regex regex::extract( std::istream& is, bool inner ) {
                     state = 0;
                 }
             } else switch( pre ) {
-                case '?': reg.content << reg; reg.type = type_t::optional; state = 0; break;
-                case '*': reg.content << reg; reg.type = type_t::any; state = 0; break;
-                case '+': reg.content << reg; reg.type = type_t::more; state = 0; break;
-                case '|': reg.content << reg; reg.type = type_t::options; state = 10; break;
+                case '?': reg = regex{content:{reg},type: type_t::optional}; state = 0; break;
+                case '*': reg = regex{content:{reg},type: type_t::any}; state = 0; break;
+                case '+': reg = regex{content:{reg},type: type_t::more}; state = 0; break;
+                case '|': reg = regex{content:{reg},type: type_t::options}; state = 10; break;
                 default: state = 0; stay = true; break;
             } break;
             case 9: {
@@ -302,7 +302,7 @@ void regex::print( std::ostream& os ) {
                 case '\n': os << "\\n"; break;
                 case '\r': os << "\\r"; break;
                 case '\t': os << "\\t"; break;
-                case '\\':case '-':
+                case '\\':case '/':case '-':
                 case '?':case '+':case '|':case '.':case '*':
                 case '(':case ')':case '[':case ']': os << '\\' << (char)value; break;
                 default: os << (char)value; break;
@@ -362,6 +362,11 @@ void regex::print( std::ostream& os ) {
                 content[i].print(os);
             } break;
     }
+}
+
+std::ostream& operator << ( std::ostream& os, regex& reg ) {
+    reg.print(os);
+    return os;
 }
 
 }

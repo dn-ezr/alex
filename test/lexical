@@ -2,4 +2,6 @@
 
 1 COMMENT:BLOCK = /\/\*.*\*\///
 
-2 COMMENT:LINE = /\/\/[^\n]*//
+2 COMMENT:LINE = /\/\/[^\n]*\n//
+
+3 MODULE = /module/\d/

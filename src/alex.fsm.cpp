@@ -1,5 +1,5 @@
-#ifndef __alex_cpp__
-#define __alex_cpp__
+#ifndef __alex_fsm_cpp__
+#define __alex_fsm_cpp__
 
 #include "alex.internal.hpp"
 #include <set>
@@ -247,7 +247,7 @@ fsm fsm::compile( std::istream& is ) {
     return diagram;
 }
 
-bool fsm::store( std::ostream& os ) {
+bool fsm::print( std::ostream& os ) {
     for( auto [state, rules] : *this ) {
         os << state;
         auto mi = rules.size() > 1;
@@ -290,6 +290,11 @@ fsm_instruction* fsm::findexit( int state, int input ) {
     for( auto& inst : prog )
         if( std::get<0>(inst) < end ) return &inst;
     return nullptr;
+}
+
+std::ostream& operator << (std::ostream& os, fsm& machine ) {
+    machine.print(os);
+    return os;
 }
 
 }

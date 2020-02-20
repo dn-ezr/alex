@@ -68,11 +68,11 @@ class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>
         static fsm load( std::istream& );
 
         /**
-         * @method store : 保存
+         * @method print : 打印
          * @desc :
-         *  有穷状态图保存到二进制数据流中
+         *  将有穷状态机打印到输出流
          */
-        bool store( std::ostream& );
+        bool print( std::ostream& );
 
         /**
          * @method genstate : 产生一个新的状态
@@ -91,6 +91,7 @@ class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>
          */
         std::tuple<int,chainz<json>>* findexit( int state, int input );
 };
+std::ostream& operator << (std::ostream&, fsm& );
 
 /**
  * @struct regex : Alex正则表达式
@@ -204,6 +205,7 @@ struct regex {
 
         void print( std::ostream& );
 };
+std::ostream& operator << ( std::ostream&, regex& );
 
 /**
  * @struct lexical_rule : 词法规则
