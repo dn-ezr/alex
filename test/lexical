@@ -5,3 +5,7 @@
 2 COMMENT:LINE = /\/\/[^\n]*\n//
 
 3 MODULE = /module/\d/
+
+4 OP:ASSIGNMENT = /=/\p/
+
+5 OP:R:EQ = /==/\p/

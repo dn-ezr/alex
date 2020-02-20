@@ -200,7 +200,7 @@ int regex::attach( fsm& machine, int start ) {
                     }
                 } break;
                 case family_t::digit: {
-                    for( auto input = '0'; input < '9'; input++ ) {
+                    for( auto input = '0'; input <= '9'; input++ ) {
                         reg.value = input;
                         reg.attach(machine, start);
                     }
@@ -215,13 +215,13 @@ int regex::attach( fsm& machine, int start ) {
                     }
                 } break;
                 case family_t::lower: {
-                    for( auto input = 'a'; input < 'z'; input ++ ) {
+                    for( auto input = 'a'; input <= 'z'; input ++ ) {
                         reg.value = input;
                         reg.attach(machine, start);
                     }
                 } break;
                 case family_t::upper: {
-                    for( auto input = 'A'; input < 'Z'; input ++ ) {
+                    for( auto input = 'A'; input <= 'Z'; input ++ ) {
                         reg.value = input;
                         reg.attach(machine, start);
                     }

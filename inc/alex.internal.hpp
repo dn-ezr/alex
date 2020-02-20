@@ -88,6 +88,19 @@ struct command_desc {
 };
 extern const std::map<int, command_desc> commands;
 
+template<typename T>
+std::vector<T> range( std::vector<T>& total ) {
+    std::vector<T> ret;
+    int take = 0;
+    for( auto item : total ) {
+        if( take == 0 or total[take-1] + 1 == item ) take += 1;
+        else break;
+    }
+    ret.insert(ret.begin(),total.begin(), total.begin()+take);
+    total.erase(total.begin(), total.begin() + take);
+    return ret;
+}
+
 }
 
 #endif

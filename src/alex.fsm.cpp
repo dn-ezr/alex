@@ -4,6 +4,7 @@
 #include "alex.internal.hpp"
 #include <set>
 #include <functional>
+#include <sstream>
 
 namespace alex {
 
@@ -247,29 +248,70 @@ fsm fsm::compile( std::istream& is ) {
     return diagram;
 }
 
+std::string fsm::print( fsm_state& state ) {
+    auto os = std::ostringstream();
+    auto mi = state.size() > 1;
+    if( mi ) os << " (" << std::endl;
+    auto begin = true;
+    std::map<std::string,std::vector<int>> rev;
+    for( auto& [input,prog] : state ) rev[print(prog)].push_back(input);
+    for( auto& [prog,inputs] : rev ) {
+        if( mi ) os << "  ";
+        else os << " ";
+        while( inputs.size() ) {
+            auto input = range(inputs);
+            if( input.front() == '0' and input.back() == '9' ) {
+                os << 'd';
+            } else if( input.front() == 'a' and input.back() == 'z' ) {
+                os << 'l';
+            } else if( input.front() == 'A' and input.back() == 'Z' ) {
+                os << 'u';
+            } else if( input.front() >= 0 and input.size() > 2 ) {
+                if( isprint(input.front()) ) os << "'" << (char)input.front() << "'";
+                else os << input.front();
+                os << " ~ ";
+                if( isprint(input.back()) ) os << "'" << (char)input.back() << "'";
+                else os << input.back();
+            } else {
+                for( auto i = 0; i < input.size(); i++ ) {
+                    if( i > 0 ) os << ", ";
+                    if( input[i] == -1 ) os << "e";
+                    else if( input[i] == -2 ) os << "*";
+                    else if( input[i] == -3 ) os << "-";
+                    else if( input[i] == -4 ) os << ">";
+                    else if( input[i] == -5 ) os << ".";
+                    else if( isprint(input[i]) ) os << "'" << (char)input[i] << "'";
+                    else os << input[i];
+                }
+            }
+            if( inputs.size() ) os << ", ";
+        }
+        os << prog;
+        if( mi ) os << std::endl;
+    }
+    if( mi ) os << ")";
+    return os.str();
+}
+
+std::string fsm::print( fsm_program& prog ) {
+    auto os = std::ostringstream();
+    auto mc = prog.size() > 1;
+    if( mc ) os << " (" << std::endl;
+    for( auto [cmd, args] : prog ) {
+        if( mc ) os << "    ";
+        else os << " ";
+        os << commands.at(cmd).name << " ";
+        for( auto arg : args ) os << arg.toJsonString() << " ";
+        if( mc ) os << std::endl;
+    }
+    if( mc ) os << "  )";
+    return os.str();
+}
+
 bool fsm::print( std::ostream& os ) {
     for( auto [state, rules] : *this ) {
         os << state;
-        auto mi = rules.size() > 1;
-        if( mi ) os << " (" << std::endl;
-        for( auto [input,prog] : rules ) {
-            if( mi ) os << "  ";
-            else os << " ";
-            if( isprint(input) ) os << "'" << (char)input << "'";
-            else os << input;
-            auto mc = prog.size() > 1;
-            if( mc ) os << " (" << std::endl;
-            for( auto [cmd, args] : prog ) {
-                if( mc ) os << "    ";
-                else os << " ";
-                 os << commands.at(cmd).name << " ";
-                for( auto arg : args ) os << arg.toJsonString() << " ";
-                if( mc ) os << std::endl;
-            }
-            if( mc ) os << "  )";
-            if( mi ) os << std::endl;
-        }
-        if( mi ) os << ")";
+        os << print(rules);
         os << std::endl;
     }
     os << std::endl;

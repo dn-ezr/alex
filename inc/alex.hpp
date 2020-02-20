@@ -68,6 +68,16 @@ class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>
         static fsm load( std::istream& );
 
         /**
+         * @method print : 打印状态
+         */
+        std::string print( fsm::value_type::second_type& );
+
+        /**
+         * @method print : 打印程序
+         */
+        std::string print( fsm::value_type::second_type::value_type::second_type& );
+
+        /**
          * @method print : 打印
          * @desc :
          *  将有穷状态机打印到输出流
