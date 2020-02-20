@@ -67,8 +67,9 @@ lexical_rules lexical_rules::compile( std::istream& is ) {
                     case 'a' ... 'z':
                     case 'A' ... 'Z':
                     case '0' ... '9':
-                    case '_': names[id] += pre; break;
+                    case '_': case ':': names[id] += pre; break;
                     default:
+                        if( names[id].back() == ':' ) throw std::runtime_error("token name cannot be terminated by colon");
                         if( pool.count(names[id]) ) throw std::runtime_error("token name '" + names[id] + "' occupied" );
                         pool.insert(names[id]);
                         rules[id].name = names[id];
@@ -113,9 +114,8 @@ fsm lexical_rules::compile() {
 
     for( auto [id, rule] : *this ) {
         auto ret = rule.match.attach( diagram, 1, id );
-        if( ret.empty() ) throw std::runtime_error("impossible match for " + std::to_string(id));
-        for( auto start : ret )
-            rule.suffix.attach( diagram, start, -id );
+        if( ret == 0 ) throw std::runtime_error("impossible match for " + std::to_string(id));
+        rule.suffix.attach( diagram, ret, -id );
     }
 
     return diagram;

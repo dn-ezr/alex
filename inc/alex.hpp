@@ -48,7 +48,7 @@ using tokens = chainz<token>;
  * @desc :
  *  有穷状态机状态图用于描述一个有穷状态机在不同状态下应对不同输入时应当采取的一系列动作。
  */
-class fsm : public std::map<int, std::map<int, chainz<std::tuple<int, const chainz<json>>>>> {
+class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>>>> {
 
     public:
 
@@ -80,6 +80,16 @@ class fsm : public std::map<int, std::map<int, chainz<std::tuple<int, const chai
          *  产生一个不重复的状态，但是无法确保此状态是否已经被引用了。
          */
         int genstate();
+
+        /**
+         * @method findexit: 寻找出度路径
+         * @desc :
+         *  寻找某状态下一个输入对应的出度路径
+         * @param state : 状态
+         * @param input : 输入
+         * @return std::tuple<int,chainz<json>>* : 返回出度指令的指针
+         */
+        std::tuple<int,chainz<json>>* findexit( int state, int input );
 };
 
 /**
@@ -180,7 +190,7 @@ struct regex {
          * @param accept : 接受记号
          * @return : 返回接受记号时的状态号
          */
-        std::set<int> attach( fsm& machine, int start, int accept );
+        int attach( fsm& machine, int start, int accept );
 
         /**
          * @method attach : 绑定
@@ -190,7 +200,7 @@ struct regex {
          * @param start : 起始状态号
          * @return : 返回子式最后到达的状态
          */
-        std::set<int> attach( fsm& machine, int start );
+        int attach( fsm& machine, int start );
 
         void print( std::ostream& );
 };

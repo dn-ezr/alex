@@ -69,6 +69,7 @@ fsm fsm::compile( std::istream& is ) {
                 case '*': var.input = -2; state = 7; break;
                 case '-': var.input = -3; state = 7; break;
                 case '>': var.input = -4; state = 7; break;
+                case '.': var.input = -5; state = 7; break;
                 case '0' ... '9': var.input = pre - '0'; state = 6; break;
                 case '\'': state = 1024; target = 5; stay = true; break;
                 case ')': if( var.multi_input ) var.states.clear(), state = 1; else state = -4; break;
@@ -248,13 +249,28 @@ fsm fsm::compile( std::istream& is ) {
 
 bool fsm::store( std::ostream& os ) {
     for( auto [state, rules] : *this ) {
+        os << state;
+        auto mi = rules.size() > 1;
+        if( mi ) os << " (" << std::endl;
         for( auto [input,prog] : rules ) {
+            if( mi ) os << "  ";
+            else os << " ";
+            if( isprint(input) ) os << "'" << (char)input << "'";
+            else os << input;
+            auto mc = prog.size() > 1;
+            if( mc ) os << " (" << std::endl;
             for( auto [cmd, args] : prog ) {
-                os << state << " " << input << " " << cmd << ": " << commands.at(cmd).name << " ";
+                if( mc ) os << "    ";
+                else os << " ";
+                 os << commands.at(cmd).name << " ";
                 for( auto arg : args ) os << arg.toJsonString() << " ";
-                os << std::endl;
+                if( mc ) os << std::endl;
             }
+            if( mc ) os << "  )";
+            if( mi ) os << std::endl;
         }
+        if( mi ) os << ")";
+        os << std::endl;
     }
     os << std::endl;
     return true;
@@ -264,6 +280,16 @@ int fsm::genstate() {
     for( int i = 2; i > 0; i++ )
         if( !this->count(i) ) return i;
     return 0;
+}
+
+fsm_instruction* fsm::findexit( int state, int input ) {
+    command_desc::init();
+    if( !count(state) or !at(state).count(input) ) return nullptr;
+    auto end = tree::reach(root, (char*)"end");
+    auto& prog = at(state)[input];
+    for( auto& inst : prog )
+        if( std::get<0>(inst) < end ) return &inst;
+    return nullptr;
 }
 
 }

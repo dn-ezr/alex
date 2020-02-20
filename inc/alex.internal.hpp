@@ -9,7 +9,7 @@
 
 namespace alex {
 
-using fsm_instruction = std::tuple<int,const chainz<json>>;
+using fsm_instruction = std::tuple<int,chainz<json>>;
 using fsm_program = chainz<fsm_instruction>;
 using fsm_state = std::map<int, fsm_program>;
 

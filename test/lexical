@@ -1,7 +1,5 @@
 /* This is a page of lexical source */
 
-1 MODULE = /module//
+1 COMMENT:BLOCK = /\/\*.*\*\///
 
-2 INTEGER = /\-?\d+/[^1-9].*?+/
-
-3 LABEL = /\l|\u|_(\l|\u|\d|_)*//
+2 COMMENT:LINE = /\/\/[^\n]*//

@@ -11,10 +11,6 @@ namespace alex {
 #define isinteger( __var ) if( !stack.var[__var].is(json::integer) ) throw std::runtime_error("bad variable " + (std::string)__var + ", wrong data type")
 
 extern const std::map<int,command_desc> commands = {
-    mkcmd( end, "", 
-        stack.action = vstack::terminate;
-        return "";
-    )
     mkcmd( drop, "",
         stack.action = vstack::drop;
         return "";
@@ -40,42 +36,46 @@ extern const std::map<int,command_desc> commands = {
     )
     mkcmd( accept+, "ll",
         stack.c = 1;
-        if( args[0].is(json::integer) ) 
-            stack.n = (long)args[0];
-        else if( args[0].is(json::string) ) {
-            isdefined( args[0] );
-            isinteger( args[0] );
-            stack.n = (long)stack.var[args[0]];
-        }
-
-        if( args[1].is(json::integer) )
-            stack.s = (long)args[1];
+        if( args[1].is(json::integer) ) 
+            stack.n = (long)args[1];
         else if( args[1].is(json::string) ) {
             isdefined( args[1] );
             isinteger( args[1] );
-            stack.s = (long)stack.var[args[1]];
+            stack.n = (long)stack.var[args[1]];
+        }
+
+        if( args[0].is(json::integer) )
+            stack.s = (long)args[0];
+        else if( args[0].is(json::string) ) {
+            isdefined( args[0] );
+            isinteger( args[0] );
+            stack.s = (long)stack.var[args[0]];
         }
         stack.action = vstack::accept;
         return "";
     )
     mkcmd( accept-, "ll",
         stack.c = 0;
-        if( args[0].is(json::integer) ) 
-            stack.n = (long)args[0];
-        else if( args[0].is(json::string) ) {
-            isdefined( args[0] );
-            isinteger( args[0] );
-            stack.n = (long)stack.var[args[0]];
-        }
-
-        if( args[1].is(json::integer) )
-            stack.s = (long)args[1];
+        if( args[1].is(json::integer) ) 
+            stack.n = (long)args[1];
         else if( args[1].is(json::string) ) {
             isdefined( args[1] );
             isinteger( args[1] );
-            stack.s = (long)stack.var[args[1]];
+            stack.n = (long)stack.var[args[1]];
+        }
+
+        if( args[0].is(json::integer) )
+            stack.s = (long)args[0];
+        else if( args[0].is(json::string) ) {
+            isdefined( args[0] );
+            isinteger( args[0] );
+            stack.s = (long)stack.var[args[0]];
         }
         stack.action = vstack::accept;
+        return "";
+    )
+    mkcmd( end, "", 
+        stack.action = vstack::terminate;
         return "";
     )
     mkcmd( mem.init, "i",

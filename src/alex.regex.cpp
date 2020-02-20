@@ -61,13 +61,13 @@ regex regex::extract( std::istream& is, bool inner ) {
             case 3: switch( pre ) {
                 case 'x': state = 4; break;
                 case 'n': case 'r': case 't': 
-                case '\\': case '-':
+                case '\\': case '-': case '/':
                 case '?': case '+': case '|': case '.':case '*':
                 case '(':case ')':case '[':case ']': {
                     switch( pre ) {
-                        case 'n': reg.value = 'n'; break;
-                        case 'r': reg.value = 'r'; break;
-                        case 't': reg.value = 't'; break;
+                        case 'n': reg.value = '\n'; break;
+                        case 'r': reg.value = '\r'; break;
+                        case 't': reg.value = '\t'; break;
                         default: reg.value = pre; break;
                     }
                     state = 8;
@@ -158,53 +158,141 @@ regex regex::compile( std::istream& is, char terminator ) {
         reg.content << item;
     }
 
+    if( reg.content.size() == 0 ) reg.type = type_t::none;
+
     return reg;
 }
 
-std::set<int> regex::attach( fsm& machine, int start ) {
+int regex::attach( fsm& machine, int start ) {
     command_desc::init();
+    auto go = tree::reach(root, (char*)"goto");
     auto into = tree::reach(root, (char*)"into");
     long end = 0;
+    machine[start];
     switch( type ) {
         case type_t::character: {
-            if( machine.count(start) and machine[start].count(value) )
-                for( auto [cmd, args] : machine[start][value] )
-                    if( cmd == into ) return {(int)(long)args[0]};
-            end = machine.genstate();
-            machine[start][value] = {{into, {(long)end}}};
-        } break;
-        case type_t::family:
-        case type_t::optional:
-        case type_t::any:
-        case type_t::more:
-        case type_t::sequence: {
-            std::set<int> starts = {start};
-            for( auto expr : content ) {
-                std::set<int> step;
-                for( auto start : starts ) {
-                    step.merge(expr.attach( machine, start ));
-                }
-                starts = step;
+            if( auto inst = machine.findexit(start, value); inst ) {
+                auto& [cmd,args] = *inst;
+                end = args.size()?(long)args[0]:start;
+            } else if( auto inst = machine.findexit(start, -5); inst ) {
+                auto& [cmd,args] = *inst;
+                auto back = args.size()?(long)args[0]:start;
+                end = machine.genstate();
+                machine[start][value] = {{into,{end}}};
+                machine[end][-2] = {{go,{back}}};
+            } else {
+                end = machine.genstate();
+                machine[start][value] = {{into, {end}}};
             }
-            return starts;
+        } break;
+        case type_t::family: {
+            end = machine.genstate();
+            auto prog = fsm_program{{into,{end}}};
+            auto reg = regex{type: type_t::character};
+            switch( (family_t)value ) {
+                case family_t::any: 
+                    machine[start][-5] = prog;
+                    break;
+                case family_t::space: {
+                    for( auto input : {' ','\t','\r','\n'}) {
+                        reg.value = input;
+                        reg.attach(machine, start);
+                    }
+                } break;
+                case family_t::digit: {
+                    for( auto input = '0'; input < '9'; input++ ) {
+                        reg.value = input;
+                        reg.attach(machine, start);
+                    }
+                } break;
+                case family_t::punct: {
+                    for( auto input : {
+                        '`','~','!','@','#','$','%','^','&','*','-','+',
+                        '[',']','(',')','{','}','<','>','|',
+                        '\\','"','\'',':',';',',','.','?','/'} ) {
+                        reg.value = input;
+                        reg.attach(machine, start);
+                    }
+                } break;
+                case family_t::lower: {
+                    for( auto input = 'a'; input < 'z'; input ++ ) {
+                        reg.value = input;
+                        reg.attach(machine, start);
+                    }
+                } break;
+                case family_t::upper: {
+                    for( auto input = 'A'; input < 'Z'; input ++ ) {
+                        reg.value = input;
+                        reg.attach(machine, start);
+                    }
+                } break;
+                case family_t::boundary: throw std::runtime_error("translation for boundary is not supported yet");
+            }
+        } break;
+        case type_t::optional: {
+            end = content[0].attach( machine, start);
+            machine[start][-2] = {{go,{end}}};
+        } break;
+        case type_t::any: {
+            end = content[0].attach( machine, start);
+            machine[end][-4] = {{go,{(long)start}}};
+            end = start;
+        } break;
+        case type_t::more: {
+            end = content[0].attach( machine, start);
+            start = end;
+            end = content[0].attach( machine, start);
+            machine[end][-4] = {{go,{(long)start}}};
+            end = start;
         }
-        case type_t::reverse:
-        case type_t::collection:
-        case type_t::options: break;
+        case type_t::sequence: {
+            for( auto expr : content ) {
+                start = expr.attach( machine, start );
+            }
+            end = start;
+        } break;
+        case type_t::reverse: {
+            for( auto expr : content )
+                machine[expr.attach(machine, start)];
+            end = machine.genstate();
+            machine[start][-5] = {{into,{end}}};
+        } break;
+        case type_t::collection: {
+            machine[end = machine.genstate()];
+            for( auto expr : content ) {
+                auto mid = expr.attach(machine, start);
+                machine[mid][-4] = {{go,{end}}};
+            }
+        } break;
+        case type_t::range: {
+            auto reg = regex{type:type_t::character};
+            machine[end = machine.genstate()];
+            for( auto i = content[0].value; i <= content[1].value; i++ ) {
+                reg.value = i;
+                auto mid = reg.attach(machine,start);
+                machine[mid][-4] = {{go,{end}}};
+            }
+        } break;
+        case type_t::options: {
+            machine[end = machine.genstate()];
+            for( auto expr : content ) {
+                auto mid = expr.attach(machine, start);
+                machine[mid][-2] = {{go,{end}}};
+            }
+        } break;
+        case type_t::none: break;
     }
 
-    return {0};
+    return end;
 }
 
-std::set<int> regex::attach( fsm& machine, int start, int accept ) {
+int regex::attach( fsm& machine, int start, int accept ) {
     command_desc::init();
     auto cmd_accept = tree::reach(root, (char*)"accept-");
-    auto reaches = attach( machine, start );
-    
-    for( auto reach : reaches )
-        machine[reach][-2] = {{cmd_accept, {(long)accept, 1L}}};
-
-    return reaches;
+    auto reach = attach( machine, start );
+    if( reach > 0 )
+        machine[reach][-2] += {{cmd_accept, {1L, (long)accept}}};
+    return reach;
 }
 
 void regex::print( std::ostream& os ) {
