@@ -100,6 +100,20 @@ class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>
          * @return std::tuple<int,chainz<json>>* : 返回出度指令的指针
          */
         std::tuple<int,chainz<json>>* findexit( int state, int input );
+
+        /**
+         * @method optimize : 优化
+         * @desc :
+         *  将过渡状态省略，删除没有入度的状态
+         * @return int : 返回删除的状态个数
+         */
+        int optimize();
+
+        /**
+         * @method forward : 快进
+         * @desc :
+         *  若当前状态是中转状态，则快进到中转链的目的状态 */
+        int forword( int state );
 };
 std::ostream& operator << (std::ostream&, fsm& );
 
@@ -201,7 +215,7 @@ struct regex {
          * @param accept : 接受记号
          * @return : 返回接受记号时的状态号
          */
-        int attach( fsm& machine, int start, int accept );
+        std::tuple<int,std::set<int>> attach( fsm& machine, int start, int accept );
 
         /**
          * @method attach : 绑定
@@ -211,21 +225,21 @@ struct regex {
          * @param start : 起始状态号
          * @return : 返回子式最后到达的状态
          */
-        int attach( fsm& machine, int start );
+        std::tuple<int,std::set<int>> attach( fsm& machine, int start );
 
         void print( std::ostream& );
 };
 std::ostream& operator << ( std::ostream&, regex& );
 
 /**
- * @struct lexical_rule : 词法规则
+ * @struct lexi : 词法规则
  * @desc :
  *  一条词法规则描述了如何从输入流中匹配一个词汇
  *  以及词汇拥有怎样的后缀时才能被接受
  *  一条正确的词汇最好以正数为id
  *  词汇不能要求负数id词汇作为前缀，因为负数前缀表示此前缀可选
  */
-struct lexical_rule {
+struct lexi {
 
     /** @member name : 符号名称 */
     std::string name;
@@ -236,13 +250,14 @@ struct lexical_rule {
     /** @member suffix : 后缀规则,如果后缀规则被满足，将接受为错误记号 */
     regex suffix;
 };
+std::ostream& operator << ( std::ostream&, lexi& );
 
 /**
- * @struct lexical_rules : 词法规则集
+ * @struct lex : 词法规则集
  * @desc :
  *  词法规则集用于描述一组词法，表示一种语言的所有词法规则
  */
-class lexical_rules : public std::map<int,lexical_rule> {
+class lex : public std::map<int,lexi> {
 
     public:
         /** 
@@ -250,7 +265,7 @@ class lexical_rules : public std::map<int,lexical_rule> {
          * @desc :
          *  将词法源码编译
          */
-        static lexical_rules compile( std::istream& );
+        static lex compile( std::istream& );
 
         /**
          * @method compile : 编译
@@ -258,7 +273,32 @@ class lexical_rules : public std::map<int,lexical_rule> {
          *  将词法规则编译成为有限状态机
          */
         fsm compile();
+
+        /**
+         * @method gencpp : 产生CPP代码
+         * @desc :
+         *  产生用于分析词法的CPP代码
+         * @param lang : 语言名称
+         */
+        std::map<std::string,std::string> gencpp( const std::string& lang );
+
+        /**
+         * @method genvt : 产生词汇表定义
+         * @desc :
+         *  产生终结词汇表定义
+         * @param lang : 语言名称
+         */
+        std::string genvt( const std::string& lang );
+
+        /**
+         * @method genctx : 产生词法上下文
+         * @desc :
+         *  产生词法上下文
+         * @param lang : 语言名称
+         */
+        std::string genctx( const std::string& lang );
 };
+std::ostream& operator << ( std::ostream&, lex& );
 
 /**
  * @class context : 上下文环境
@@ -287,6 +327,8 @@ class context {
         tokens perform( std::istream&, std::ostream& );
 
         tokens perform( tokens, std::ostream& );
+
+        std::string printlex();
 };
 
 }

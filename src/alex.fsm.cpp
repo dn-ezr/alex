@@ -62,15 +62,15 @@ fsm fsm::compile( std::istream& is ) {
             } break;
             case 4: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
-                case 'l': var.input = 'a'; var.range = 'z'; state = 11; break;
-                case 'u': var.input = 'A'; var.range = 'Z'; state = 11; break;
-                case 'd': var.input = '0'; var.range = '9'; state = 11; break;
-                case 's': var.inputs.insert({' ','\n','\t','\r'}); var.input = ' '; state = 7; break;
                 case 'e': var.input = -1; state = 7; break;
                 case '*': var.input = -2; state = 7; break;
                 case '-': var.input = -3; state = 7; break;
                 case '>': var.input = -4; state = 7; break;
                 case '.': var.input = -5; state = 7; break;
+                case 'l': var.input = -6; state = 7; break;
+                case 'u': var.input = -7; state = 7; break;
+                case 'd': var.input = -8; state = 7; break;
+                case 's': var.input = -9; state = 7; break;
                 case '0' ... '9': var.input = pre - '0'; state = 6; break;
                 case '\'': state = 1024; target = 5; stay = true; break;
                 case ')': if( var.multi_input ) var.states.clear(), state = 1; else state = -4; break;
@@ -260,13 +260,7 @@ std::string fsm::print( fsm_state& state ) {
         else os << " ";
         while( inputs.size() ) {
             auto input = range(inputs);
-            if( input.front() == '0' and input.back() == '9' ) {
-                os << 'd';
-            } else if( input.front() == 'a' and input.back() == 'z' ) {
-                os << 'l';
-            } else if( input.front() == 'A' and input.back() == 'Z' ) {
-                os << 'u';
-            } else if( input.front() >= 0 and input.size() > 2 ) {
+            if( input.front() >= 0 and input.size() > 2 ) {
                 if( isprint(input.front()) ) os << "'" << (char)input.front() << "'";
                 else os << input.front();
                 os << " ~ ";
@@ -280,6 +274,10 @@ std::string fsm::print( fsm_state& state ) {
                     else if( input[i] == -3 ) os << "-";
                     else if( input[i] == -4 ) os << ">";
                     else if( input[i] == -5 ) os << ".";
+                    else if( input[i] == -6 ) os << "l";
+                    else if( input[i] == -7 ) os << "u";
+                    else if( input[i] == -8 ) os << "d";
+                    else if( input[i] == -9 ) os << "s";
                     else if( isprint(input[i]) ) os << "'" << (char)input[i] << "'";
                     else os << input[i];
                 }
@@ -332,6 +330,56 @@ fsm_instruction* fsm::findexit( int state, int input ) {
     for( auto& inst : prog )
         if( std::get<0>(inst) < end ) return &inst;
     return nullptr;
+}
+
+int fsm::optimize() {
+    std::map<int,int> in;
+    for( auto& [state, inputs] : *this ) {
+        if( in.count(state) == 0 ) in[state] = 0;
+        auto end = tree::reach(root, (char*)"end");
+        auto gt = tree::reach(root, (char*)"goto");
+        for( auto& [input, prog] : inputs ) {
+            for( auto& inst : prog ) {
+                if( std::get<0>(inst) < end && std::get<1>(inst).size() ) {
+                    auto& target = std::get<1>(inst)[0];
+                    target = (long)forword((long)target);
+                    if( in.count((long)target) ) in[(long)target] += 1;
+                    else in[(long)target] = 1;
+                }
+            }
+        }
+    }
+
+    int total = 0;
+    for( auto [key,cnt] : in ) {
+        if( key != 1 and cnt <= 0 )  {
+            erase(key);
+            total += 1;
+        }
+    }
+
+    return total;
+}
+
+int fsm::forword( int state ) {
+    int ret = state;
+    auto go = tree::reach(root, (char*)"goto");
+    while( count(ret) ) {
+        auto& st = at(ret);
+        if( st.empty() ) break;
+        if( st.count(-4) and st[-4].size() == 1 and std::get<0>(st[-4][0]) == go ) {
+            ret = (long)(std::get<1>(st[-4][0])[0]);
+        } else {
+            if( st.size() != 1 ) break;
+            auto& [in,prog] = *st.begin();
+            if( in != -2 and in != -4 ) break;
+            if( prog.size() != 1 ) break;
+            auto& [cmd, arg] = prog[0];
+            if( cmd != go ) break;
+            ret = (long)arg[0];
+        }
+    }
+    return ret;
 }
 
 std::ostream& operator << (std::ostream& os, fsm& machine ) {
