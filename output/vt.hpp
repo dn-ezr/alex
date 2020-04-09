@@ -1,7 +1,7 @@
 #ifndef __vt__
 #define __vt__
 
-namespace alioth{
+namespace alioth {
     constexpr int ANY = 2;
     constexpr int ASSUME = 4;
     constexpr int ASYNC = 5;
@@ -26,19 +26,19 @@ namespace alioth{
     constexpr int THIS = 29;
     constexpr int VAR = 30;
     constexpr int WHILE = 31;
-    namespace COMMENT{
+    namespace COMMENT {
         constexpr int BLOCK = 32;
         constexpr int LINE = 33;
     }
-    namespace L{
+    namespace L {
         constexpr int LABEL = 34;
-        namespace I{
+        namespace I {
             constexpr int H = 36;
             constexpr int B = 37;
             constexpr int N = 38;
         }
     }
-    namespace OP{
+    namespace OP {
         constexpr int AND = 1;
         constexpr int AS = 3;
         constexpr int DELETE = 12;

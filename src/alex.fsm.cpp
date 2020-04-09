@@ -307,10 +307,12 @@ std::string fsm::print( fsm_program& prog ) {
 }
 
 bool fsm::print( std::ostream& os ) {
-    for( auto [state, rules] : *this ) {
-        os << state;
-        os << print(rules);
-        os << std::endl;
+    std::map<std::string, std::vector<int>> reverse;
+    for( auto [state, rules] : *this ) reverse[print(rules)].push_back(state);
+    for( auto [rules, states] : reverse ) {
+        os << states[0];
+        for( int i = 1; i < states.size(); i++ ) os << ", " << states[i];
+        os << rules << std::endl;
     }
     os << std::endl;
     return true;

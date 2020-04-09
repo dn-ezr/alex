@@ -283,20 +283,36 @@ class lex : public std::map<int,lexi> {
         std::map<std::string,std::string> gencpp( const std::string& lang );
 
         /**
-         * @method genvt : 产生词汇表定义
+         * @method genvtd : 产生词汇表定义
          * @desc :
          *  产生终结词汇表定义
          * @param lang : 语言名称
          */
-        std::string genvt( const std::string& lang );
+        std::string genvtd( const std::string& lang );
 
         /**
-         * @method genctx : 产生词法上下文
+         * @method gentokend : 产生词法符号定义
          * @desc :
-         *  产生词法上下文
+         *  产生词法符号定义
          * @param lang : 语言名称
          */
-        std::string genctx( const std::string& lang );
+        std::string gentokend( const std::string& lang );
+
+        /**
+         * @method genctxd : 产生词法分析上下文定义
+         * @desc :
+         *  产生词法分析上下文定义
+         * @param lang : 语言名称
+         */
+        std::string genctxd( const std::string& lang );
+
+        /**
+         * @method genctxi : 产生词法上下文实现
+         * @desc :
+         *  产生词法上下文实现
+         * @param lang : 语言名称
+         */
+        std::string genctxi( const std::string& lang );
 };
 std::ostream& operator << ( std::ostream&, lex& );
 

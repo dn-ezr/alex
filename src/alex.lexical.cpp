@@ -113,32 +113,35 @@ lex lex::compile( std::istream& is ) {
 fsm lex::compile() {
     fsm diagram;
 
-    std::cout << "[Compiling LEX]" << std::endl;
     for( auto [id, rule] : *this ) {
-        std::cout << id << " ";
         auto [re,rs] = rule.match.attach( diagram, 1, id );
         if( re == 0 ) throw std::runtime_error("impossible match for " + std::to_string(id));
         rule.suffix.attach( diagram, re, -id );
         for( auto r : rs )
             rule.suffix.attach( diagram, r, -id );
     }
-    std::cout << std::endl;
+
+    diagram.optimize();
+    diagram[1][-1] = {{tree::reach(root,(char*)"end"),{}}};
 
     return diagram;
 }
 
 std::map<std::string, std::string> lex::gencpp( const std::string& lang ) {
     std::map<std::string, std::string> files;
-    files["vt.hpp"] = genvt(lang);
+    files["vt.hpp"] = genvtd(lang);
+    files["token.hpp"] = gentokend(lang);
+    files["lexical.hpp"] = genctxd(lang);
+    files["lexical.cpp"] = genctxi(lang);
     return files;
 }
 
-std::string lex::genvt( const std::string& lang ) {
+std::string lex::genvtd( const std::string& lang ) {
     ns global;
     std::function<std::string(const std::string&,const ns&,int)> print = [&]( const std::string& name, const ns& sc, int indent ) {
         std::string tab = "    ";
         std::string tabs = tab * indent;
-        std::string code = tabs + "namespace " + name + "{\n";
+        std::string code = tabs + "namespace " + name + " {\n";
         for( auto [id,tk] : sc.def ) {
             code += tabs + tab + "constexpr int " + tk + " = " + std::to_string(id) + ";\n";
         }
@@ -156,6 +159,121 @@ std::string lex::genvt( const std::string& lang ) {
         sc->def[id] = names[names.size()-1];
     }
     return "#ifndef __vt__\n#define __vt__\n\n" + print(lang,global,0) + "\n#endif";
+}
+
+std::string lex::gentokend( const std::string& lang ) {
+    std::string ret;
+    size_t i = 0;
+    while( true ) {
+        auto cut = code_token_hpp.find("%l", i );
+        if( cut != std::string::npos ) {
+            ret += code_token_hpp.substr( i, cut-i ) + lang;
+            i += cut + 2;
+        } else {
+            ret += code_token_hpp.substr( i );
+            break;
+        }
+    }
+    return ret;
+}
+
+std::string lex::genctxd( const std::string& lang ) {
+    return replace(code_lexical_hpp, {{"%l", lang}});
+}
+
+std::string print( fsm_program& prog ) {
+    static auto _goto = tree::reach( root, (char*)"goto");
+    static auto _into = tree::reach( root, (char*)"into");
+    static auto _end = tree::reach( root, (char*)"end");
+    static auto _accept_p = tree::reach( root, (char*)"accept+");
+    static auto _accept_m = tree::reach( root, (char*)"accept-");
+    static auto inst1 = "{ %cmd(%arg0); break; }";
+    static auto inst2 = "{ %cmd(%arg0, %arg1); break; }";
+    static auto inst3 = "{ %cmd(%arg0, %arg1, %arg2); break; }";
+    if( prog.size() != 1 ) throw std::runtime_error("lex::genctxi::print : I can handle program with one instruction only");
+    auto& [cmd,args] = prog[0];
+    if( cmd == _end ) {
+        return "{ m_state = 0; break; }";
+    } else if( cmd == _goto ) {
+        return replace(inst1, {
+            {"%cmd", "_goto"},
+            {"%arg0", std::to_string((long)args[0])}
+        });
+    } else if( cmd == _into ) {
+        return replace(inst1, {
+            {"%cmd", "_into"},
+            {"%arg0", std::to_string((long)args[0])}
+        });
+    } else if( cmd == _accept_m ) {
+        return replace(inst3, {
+            {"%cmd", "accept"},
+            {"%arg0", std::to_string((long)args[0])},
+            {"%arg1", std::to_string((long)args[1])},
+            {"%arg2", "false"}
+        });
+    } else if( cmd == _accept_p ) {
+        return replace(inst3, {
+            {"%cmd", "accept"},
+            {"%arg0", std::to_string((long)args[0])},
+            {"%arg1", std::to_string((long)args[1])},
+            {"%arg2", "true"}
+        });
+    } else {
+        throw std::runtime_error("lex::genctxi::print : cannot handle instruction other than end/goto/into/accept+/accept-");
+    }
+}
+
+std::string print(fsm_state rules ) {
+    std::string code;
+    std::vector<int> tail;
+    static auto s16 = "\n" + std::string(" ")*16;
+    std::map<std::string,std::vector<int>> reverse;
+
+    if( rules.count(-4) ) code += s16 + print(rules[-4]);
+    for( auto& [input, prog] : rules )
+        if( input != -4 and input != -2 )
+            if( input >= -1 ) reverse[print(prog)].push_back(input);
+            else tail.push_back(input);
+
+    for( auto& [prog,inputs] : reverse ) {
+        std::string cond = "if( %cond)";
+        while( inputs.size() ) {
+            auto input = range(inputs);
+            if( input.size() == 1 ) {
+                cond = replace(cond, {{"%cond", std::to_string(input[0]) + " == m_pre or %cond"}} );
+            } else {
+                cond = replace(cond, {{"%cond", "( " + std::to_string(input.front()) + " <= m_pre and m_pre <= " + std::to_string(input.back()) + " ) or %cond"}});
+            }
+        }
+        cond = replace(cond, {{"or %cond", ""}});
+        code += s16 + cond + prog;
+    }
+    if( rules.count(-9) ) code += s16 + "if( m_pre == ' ' or m_pre == '\\t' or m_pre == '\\n' or m_pre == '\\r' ) " + print(rules[-9]);
+    if( rules.count(-8) ) code += s16 + "if( '0' <= m_pre and m_pre <= '9' ) " + print(rules[-8]);
+    if( rules.count(-7) ) code += s16 + "if( 'A' <= m_pre and m_pre <= 'Z' ) " + print(rules[-7]);
+    if( rules.count(-6) ) code += s16 + "if( 'a' <= m_pre and m_pre <= 'z' ) " + print(rules[-6]);
+    if( rules.count(-5) ) code += s16 + "if( 1 <= m_pre and m_pre <= 127 ) " + print(rules[-5]);
+    if( rules.count(-2) ) code += s16 + print(rules[-2]);
+    else code += s16 + "accept(1, 0, true);";
+    return code;
+}
+
+std::string lex::genctxi( const std::string& lang ) {
+    std::string code;
+    auto dfa = compile();
+    static auto s12 = "\n" + std::string(" ")*12;
+    std::map<std::string,std::vector<int>> reverse;
+    for( auto& [state,inputs] : dfa ) reverse[print(inputs)].push_back(state);
+    for( auto& [rules,states] : reverse ) {
+        code += s12;
+        for( auto state : states ) code += "case " + std::to_string(state) + ": ";
+        code += rules;
+        code += s12 + "break;";
+    }
+    return replace(code_lexical_cpp, {
+        {"%l", lang},
+        {"%dfa", code}
+    });
 }
 
 std::ostream& operator << ( std::ostream& os, lexi& rule ) {

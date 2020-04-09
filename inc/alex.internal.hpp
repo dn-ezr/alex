@@ -107,10 +107,13 @@ struct ns {
 };
 
 std::vector<std::string> split( const std::string&, const char );
+std::string replace( const std::string& , const std::map<std::string,std::string>& job );
 
 std::string operator * ( const std::string& , int );
 
 extern const std::string code_lexical_hpp;
+extern const std::string code_token_hpp;
+extern const std::string code_lexical_cpp;
 
 }
 
