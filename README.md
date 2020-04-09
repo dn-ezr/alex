@@ -2,7 +2,7 @@
 
 **alex**项目旨在开发一款带运算能力的有限状态机。
 
-**alex**可以讲**alex regex**编译成为**alex**状态机，继而生成对应的`C++`源代码。
+**alex**可以将**alex regex**编译成为**alex**状态机，继而生成对应的`C++`源代码。
 
 - [Alex](#alex)
   - [AlexDfa](#alexdfa)
