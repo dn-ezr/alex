@@ -122,8 +122,6 @@ fsm lex::compile() {
     }
 
     diagram.optimize();
-    diagram.print(std::cout);
-    std::cout.flush();
     diagram[1][-1] = {{tree::reach(root,(char*)"end"),{}}};
 
     return diagram;

@@ -25,4 +25,7 @@ init:
 clean:
 	rm -rf obj/*.o bin/*
 
+install: $(TARGET)
+	sudo cp bin/alex /usr/bin/alex
+
 .PHONY: init clean install
