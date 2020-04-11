@@ -141,7 +141,7 @@ std::string lex::genvtd( const std::string& lang ) {
     std::function<std::string(const std::string&,const ns&,int)> print = [&]( const std::string& name, const ns& sc, int indent ) {
         std::string tab = "    ";
         std::string tabs = tab * indent;
-        std::string code = tabs + "namespace " + name + " {\n";
+        std::string code = tabs + "namespace " + name + "::VT {\n";
         for( auto [id,tk] : sc.def ) {
             code += tabs + tab + "constexpr int " + tk + " = " + std::to_string(id) + ";\n";
         }

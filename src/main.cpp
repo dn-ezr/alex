@@ -6,7 +6,7 @@
 
 int main( int argc, char **argv ) {
     if( argc < 2 ) return 1;
-    std::string lexical_input;
+    std::string input;
     std::string lang;
     std::set<std::string> generate;
     std::string to_path;
@@ -58,14 +58,14 @@ Usage: alex [OPTIONS] input_file
 )...";
             return 0;
         } else {
-            if( lexical_input.size() ) {
+            if( !input.empty() ) {
                 std::cout << "The lexical input has been specified already" << std::endl;
                 return 1;
             }
-            lexical_input = std::string(argv[i]);
+            input = std::string(argv[i]);
         }
     }
-    if( lexical_input.empty() ) {
+    if( input.empty() ) {
         std::cout << "No input specified" << std::endl;
         return 1;
     }
@@ -73,7 +73,7 @@ Usage: alex [OPTIONS] input_file
         std::cout << "No language name specified " << std::endl;
         return 1;
     }
-    auto is = std::ifstream(lexical_input);
+    auto is = std::ifstream(input);
     if( !is.good() ) {
         std::cout << "Cannot open the input file for read" << std::endl;
         return 1;
