@@ -122,6 +122,8 @@ fsm lex::compile() {
     }
 
     diagram.optimize();
+    diagram.print(std::cout);
+    std::cout.flush();
     diagram[1][-1] = {{tree::reach(root,(char*)"end"),{}}};
 
     return diagram;
@@ -190,7 +192,7 @@ std::string print( fsm_program& prog ) {
     static auto inst1 = "{ %cmd(%arg0); break; }";
     static auto inst2 = "{ %cmd(%arg0, %arg1); break; }";
     static auto inst3 = "{ %cmd(%arg0, %arg1, %arg2); break; }";
-    if( prog.size() != 1 ) throw std::runtime_error("lex::genctxi::print : I can handle program with one instruction only");
+    if( prog.size() != 1 ) throw std::runtime_error("lex::genctxi::print : I can handle program with one instruction only" + fsm::print(prog));
     auto& [cmd,args] = prog[0];
     if( cmd == _end ) {
         return "{ m_state = 0; break; }";

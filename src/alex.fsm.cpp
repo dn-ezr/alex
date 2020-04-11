@@ -336,10 +336,11 @@ fsm_instruction* fsm::findexit( int state, int input ) {
 
 int fsm::optimize() {
     std::map<int,int> in;
+    std::map<int,std::vector<std::tuple<int,int,int>>> out;
+    auto end = tree::reach(root, (char*)"end");
+    auto gt = tree::reach(root, (char*)"goto");
     for( auto& [state, inputs] : *this ) {
         if( in.count(state) == 0 ) in[state] = 0;
-        auto end = tree::reach(root, (char*)"end");
-        auto gt = tree::reach(root, (char*)"goto");
         for( auto& [input, prog] : inputs ) {
             for( auto& inst : prog ) {
                 if( std::get<0>(inst) < end && std::get<1>(inst).size() ) {
@@ -347,6 +348,7 @@ int fsm::optimize() {
                     target = (long)forword((long)target);
                     if( in.count((long)target) ) in[(long)target] += 1;
                     else in[(long)target] = 1;
+                    out[(long)target].push_back({state,input,prog.index(inst)});
                 }
             }
         }
@@ -357,6 +359,22 @@ int fsm::optimize() {
         if( key != 1 and cnt <= 0 )  {
             erase(key);
             total += 1;
+        }
+    }
+
+    for( long dst = 1; dst <= size(); dst++ ) {
+        if( !count(dst) ) {
+            auto& [src,_] = *this->crbegin();
+            for( auto& [state,input,inst] : out[src] ) {
+                if( count(state) )
+                    std::get<1>((*this)[state][input][inst])[0] = dst;
+            }
+            for( auto& [___,insts] : out ) {
+                for( auto& [state,_,__] : insts )
+                    if( state == src ) state = dst;
+            }
+            (*this)[dst] = std::move((*this)[src]);
+            erase(src);
         }
     }
 
