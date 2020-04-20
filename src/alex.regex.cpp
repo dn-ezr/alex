@@ -171,17 +171,38 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
     long end = 0;
     std::set<int> ends;
     machine[start];
+    std::function<void(int,std::set<int>,std::set<int>)> proc = [&]( int e, std::set<int> es, std::set<int> history ) {
+        e = machine.forword(e);
+        machine[e][-4] = {{go,{(long)start}}};
+        for( auto ae : es ) {
+            ae = machine.forword(ae);
+            if( history.count(ae) ) continue;
+            history.insert(ae);
+            if( !machine[ae].count(-1) ) machine[ae][-2] = {{go,{(long)start}}};
+            auto [ie, ies] = content[0].attach( machine, ae);
+            proc( ie, ies, history );
+        }
+    };
     switch( type ) {
         case type_t::character: {
-            if( auto inst = machine.findexit(start, value); inst ) {
-                auto& [cmd,args] = *inst;
-                end = args.size()?(long)args[0]:start;
-            } else if( auto inst = machine.findexit(start, -5); inst ) {
-                auto& [cmd,args] = *inst;
-                auto back = args.size()?(long)args[0]:start;
+            if( auto out = machine.findout(start, value); out ) {
+                ends.insert(out);
+            } else if( auto out = machine.findout(start, -8); out and value >= '0' and value <= '9' ) {
                 end = machine.genstate();
                 machine[start][value] = {{into,{end}}};
-                machine[end][-2] = {{go,{back}}};
+                machine[end][-2] = {{go,{(long)out}}};
+            } else if( auto out = machine.findout(start, -7); out and value >= 'A' and value <= 'Z' ) {
+                end = machine.genstate();
+                machine[start][value] = {{into,{end}}};
+                machine[end][-2] = {{go,{(long)out}}};
+            } else if( auto out = machine.findout(start, -6); out and value >= 'a' and value <= 'z' ) {
+                end = machine.genstate();
+                machine[start][value] = {{into,{end}}};
+                machine[end][-2] = {{go,{(long)out}}};
+            } else if( auto out = machine.findout(start, -5); out ) {
+                end = machine.genstate();
+                machine[start][value] = {{into,{end}}};
+                machine[end][-2] = {{go,{(long)out}}};
             } else {
                 end = machine.genstate();
                 machine[start][value] = {{into, {end}}};
@@ -201,15 +222,18 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
             };
             switch( (family_t)value ) {
                 case family_t::any:
-                    machine[start][-5] = prog;
+                    if( machine[start].count(-5) ) patch(-5);
+                    else machine[start][-5] = prog;
                     for( int i = 1; i < 128; i++ ) patch(i);
                     break;
                 case family_t::space:
-                    machine[start][-9] = prog;
+                    if( machine[start].count(-9) ) patch(-9);
+                    else machine[start][-9] = prog;
                     for( auto i : {' ','\n','\t','\r'} ) patch(i);
                     break;
                 case family_t::digit:
-                    machine[start][-8] = prog;
+                    if( machine[start].count(-8) ) patch(-8);
+                    else machine[start][-8] = prog;
                     for( auto i = '0'; i <= '9'; i++ ) patch(i);
                     break;
                 case family_t::punct: {
@@ -222,11 +246,13 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
                     }
                 } break;
                 case family_t::lower:
-                    machine[start][-6] = prog;
+                    if( machine[start].count(-6) ) patch(-6);
+                    else machine[start][-6] = prog;
                     for( auto i = 'a'; i <= 'z'; i++ ) patch(i);
                     break;
                 case family_t::upper:
-                    machine[start][-7] = prog;
+                    if( machine[start].count(-7) ) patch(-7);
+                    else machine[start][-7] = prog;
                     for( auto i = 'A'; i <= 'Z'; i++ ) patch(i);
                     break;
                 case family_t::boundary: throw std::runtime_error("translation for boundary is not supported yet");
@@ -236,43 +262,19 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
             auto [e,es] = content[0].attach( machine, start);
             for( auto e : es )
                 if( !machine[e].count(-2) ) machine[e][-2] = {{go,{(long)e}}};
-            machine[start][-2] = {{go,{(long)e}}};
+            if( e ) machine[start][-2] = {{go,{(long)e}}};
             end = e;
         } break;
         case type_t::any: {
             end = start;
-            std::function<void(int,std::set<int>,std::set<int>)> proc = [&]( int e, std::set<int> es, std::set<int> history ) {
-                e = machine.forword(e);
-                machine[e][-4] = {{go,{(long)start}}};
-                for( auto ae : es ) {
-                    ae = machine.forword(ae);
-                    if( history.count(ae) ) continue;
-                    history.insert(ae);
-                    machine[ae][-2] = {{go,{(long)start}}};
-                    auto [ie, ies] = content[0].attach( machine, ae);
-                    proc( ie, ies, history );
-                }
-            };
             auto [e,es] = content[0].attach( machine, start);
             proc(e, es, {});
         } break;
         case type_t::more: {
-            std::function<void(int,std::set<int>,std::set<int>)> proc = [&]( int e, std::set<int> es, std::set<int> history ) {
-                e = machine.forword(e);
-                machine[e][-4] = {{go,{(long)start}}};
-                for( auto ae : es ) {
-                    ae = machine.forword(ae);
-                    if( history.count(ae) ) continue;
-                    history.insert(ae);
-                    machine[ae][-2] = {{go,{(long)start}}};
-                    auto [ie, ies] = content[0].attach( machine, ae);
-                    proc( ie, ies, history );
-                }
-            };
             auto [be,bes] = content[0].attach( machine, start);
             end = start = be;
+            //ends = bes;
             auto [e,es] = content[0].attach( machine, start);
-            es.merge(bes);
             proc(e, es, {});
         }break;
         case type_t::sequence: {
@@ -283,7 +285,7 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
                 next.merge(es);
                 for( auto start : ends ) {
                     auto [e,es] = expr.attach(machine, start);
-                    machine[e][-4] = {{go,{(long)end}}};
+                    if( e ) machine[e][-4] = {{go,{(long)end}}};
                     next.merge(es);
                 }
                 ends = next;
@@ -293,8 +295,12 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
         case type_t::reverse: {
             for( auto expr : content )
                 expr.attach(machine, start);
-            end = machine.genstate();
-            machine[start][-5] = {{into,{end}}};
+            if( machine[start].count(-5) )
+                ends.insert(machine.findout(start, -5));
+            else {
+                end = machine.genstate();
+                machine[start][-5] = {{into,{end}}};
+            }
         } break;
         case type_t::collection: {
             machine[end = machine.genstate()];
@@ -334,10 +340,11 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start, int accept
     command_desc::init();
     auto cmd_accept = tree::reach(root, (char*)"accept-");
     auto [reach,branchs] = attach( machine, start );
-    if( reach == 0 ) return {0,{}};
+    if( reach == 0 and branchs.empty() ) return {0,{}};
     machine[reach][-2] += {{cmd_accept, {1L, (long)accept}}};
     for( auto br : branchs )
             machine[br][-2] += {{cmd_accept, {1L, (long)accept}}};
+    if( start == 1 ) machine.optimize();
     return {reach, branchs};
 }
 

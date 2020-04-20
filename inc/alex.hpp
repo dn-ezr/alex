@@ -102,6 +102,15 @@ class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>
         std::tuple<int,chainz<json>>* findexit( int state, int input );
 
         /**
+         * @method findout : 寻找出度目的状态
+         * @desc :
+         *  寻找某一状态下一个输入对应的出度状态
+         * @param state : 状态
+         * @param input : 输入
+         * @return int : 出度状态 */
+        int findout( int state, int input );
+
+        /**
          * @method optimize : 优化
          * @desc :
          *  将过渡状态省略，删除没有入度的状态

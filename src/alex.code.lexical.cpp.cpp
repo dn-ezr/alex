@@ -20,10 +20,13 @@ void LexicalContext::_goto( int state ) {
 }
 
 void LexicalContext::_into( int state ) {
+    m_cur.el = m_line;
+    m_cur.ec = m_column;
     m_cur.tx += m_pre;
     m_offset += 1;
     if( m_pre == '\n' ) m_line += m_column = 1;
     else m_column += 1;
+    m_is->get();
     m_state = state;
 }
 
@@ -33,15 +36,18 @@ void LexicalContext::accept( int state, int id, bool take ) {
     m_cur.id = id;
     if( ontoken ) 
         if( !ontoken(std::move(m_cur)) ) m_state = 0;
-    m_cur.id = m_cur.bl = m_cur.bc = m_cur.el = m_cur.ec = 0;
+    m_cur.id = 0;
+    m_cur.bl = m_cur.el = m_line;
+    m_cur.bc = m_cur.ec = m_column;
     m_cur.tx.clear();
 }
 
 int LexicalContext::perform( std::istream& source ) {
 
     if( !source.good() ) return 0;
+    m_is = &source;
 
-    m_state = m_line = m_column = 1;
+    m_cur.bl = m_cur.bc = m_cur.el = m_cur.ec = m_state = m_line = m_column = 1;
     m_offset = 0;
 
     while( m_state > 0 ) {
@@ -53,6 +59,7 @@ int LexicalContext::perform( std::istream& source ) {
         }
     }
 
+    m_is = nullptr;
     return m_offset;
 }
 

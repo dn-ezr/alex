@@ -261,10 +261,14 @@ std::string fsm::print( fsm_state& state ) {
         while( inputs.size() ) {
             auto input = range(inputs);
             if( input.front() >= 0 and input.size() > 2 ) {
-                if( isprint(input.front()) ) os << "'" << (char)input.front() << "'";
+                if( input.front() == '\'' ) os << "'\\''";
+                else if( input.front() == '\\' ) os << "'\\\\'";
+                else if( isprint(input.front()) ) os << "'" << (char)input.front() << "'";
                 else os << input.front();
                 os << " ~ ";
-                if( isprint(input.back()) ) os << "'" << (char)input.back() << "'";
+                if( input.back() == '\'' ) os << "'\\''";
+                else if( input.back() == '\\' ) os << "'\\\\'";
+                else if( isprint(input.back()) ) os << "'" << (char)input.back() << "'";
                 else os << input.back();
             } else {
                 for( auto i = 0; i < input.size(); i++ ) {
@@ -278,6 +282,8 @@ std::string fsm::print( fsm_state& state ) {
                     else if( input[i] == -7 ) os << "u";
                     else if( input[i] == -8 ) os << "d";
                     else if( input[i] == -9 ) os << "s";
+                    else if( input[i] == '\'' ) os << "'\\''";
+                    else if( input[i] == '\\' ) os << "'\\\\'";
                     else if( isprint(input[i]) ) os << "'" << (char)input[i] << "'";
                     else os << input[i];
                 }
@@ -334,6 +340,12 @@ fsm_instruction* fsm::findexit( int state, int input ) {
     return nullptr;
 }
 
+int fsm::findout( int state, int input ) {
+    auto i = findexit( state, input );
+    if( i ) return (std::get<1>(*i).size())?((int)(long)std::get<1>(*i)[0]):state;
+    else return 0;
+}
+
 int fsm::optimize() {
     std::map<int,int> in;
     std::map<int,std::vector<std::tuple<int,int,int>>> out;
@@ -366,8 +378,12 @@ int fsm::optimize() {
         if( !count(dst) ) {
             auto& [src,_] = *this->crbegin();
             for( auto& [state,input,inst] : out[src] ) {
-                if( count(state) )
-                    std::get<1>((*this)[state][input][inst])[0] = dst;
+                if( !count(state) ) continue;
+                auto& rules = (*this)[state];
+                if( !rules.count(input) ) continue;
+                auto& prog = rules[input];
+                if( prog.size() <= inst ) continue;
+                std::get<1>(prog[inst])[0] = dst;
             }
             for( auto& [___,insts] : out ) {
                 for( auto& [state,_,__] : insts )

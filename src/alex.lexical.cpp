@@ -48,6 +48,7 @@ lex lex::compile( std::istream& is ) {
                     case 'A' ... 'Z':
                     case '_': throw std::runtime_error("whitespace expected between name and id");
                     default:
+                        if( id <= 0 ) throw std::runtime_error("token id cannot be less than 1");
                         if( names.count(id) ) throw std::runtime_error("token definition already exists for " + std::to_string(id));
                         names[id] = "";
                         stay = true;
@@ -115,7 +116,7 @@ fsm lex::compile() {
 
     for( auto [id, rule] : *this ) {
         auto [re,rs] = rule.match.attach( diagram, 1, id );
-        if( re == 0 ) throw std::runtime_error("impossible match for " + std::to_string(id));
+        if( re == 0 and rs.empty() ) throw std::runtime_error("impossible match for " + std::to_string(id));
         rule.suffix.attach( diagram, re, -id );
         for( auto r : rs )
             rule.suffix.attach( diagram, r, -id );
@@ -141,7 +142,7 @@ std::string lex::genvtd( const std::string& lang ) {
     std::function<std::string(const std::string&,const ns&,int)> print = [&]( const std::string& name, const ns& sc, int indent ) {
         std::string tab = "    ";
         std::string tabs = tab * indent;
-        std::string code = tabs + "namespace " + name + "::VT {\n";
+        std::string code = tabs + "namespace " + name + " {\n";
         for( auto [id,tk] : sc.def ) {
             code += tabs + tab + "constexpr int " + tk + " = " + std::to_string(id) + ";\n";
         }
@@ -158,7 +159,8 @@ std::string lex::genvtd( const std::string& lang ) {
             sc = &sc->sub[names[off]];
         sc->def[id] = names[names.size()-1];
     }
-    return "#ifndef __vt__\n#define __vt__\n\n" + print(lang,global,0) + "\n#endif";
+    global.def[0] = "$";
+    return "#ifndef __vt__\n#define __vt__\n\n" + print(lang+"::VT",global,0) + "\n#endif";
 }
 
 std::string lex::gentokend( const std::string& lang ) {

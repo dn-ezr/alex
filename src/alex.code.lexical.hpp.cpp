@@ -41,6 +41,10 @@ class LexicalContext {
          * @member m_pre : 当前预览 */
         int m_pre;
 
+        /**
+         * @member m_is : 当前输入流指针 */
+        std::istream* m_is;
+
     private:
 
         /**

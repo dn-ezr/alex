@@ -81,7 +81,7 @@ Usage: alex [OPTIONS] input_file
     auto lex = alex::lex::compile(is);
     if( generate.empty() ) {
         auto dfa = lex.compile();
-        std::cout << lex << std::endl;
+        std::cout << dfa << std::endl;
     } else {
         for( auto& fname : generate ) {
             std::string gen;
