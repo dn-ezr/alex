@@ -346,7 +346,7 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start, int accept
     if( reach == 0 and branchs.empty() ) return {0,{}};
     if( !machine.count(-2) ) machine[reach][-2] = {{cmd_accept, {1L, (long)accept}}};
     for( auto br : branchs )
-            if( !machine[br].count(-2) ) machine[br][-2] += {{cmd_accept, {1L, (long)accept}}};
+            if( !machine[br].count(-2) ) machine[br][-2] = {{cmd_accept, {1L, (long)accept}}};
     if( start == 1 ) machine.optimize();
     return {reach, branchs};
 }
