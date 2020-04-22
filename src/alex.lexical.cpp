@@ -225,6 +225,21 @@ std::string print( fsm_program& prog ) {
     }
 }
 
+std::string print( int input ) {
+    if( isprint(input) ) switch( input ) {
+        case '\'': return "\'\\\'\'";
+        case '\"': return "\'\\\"\'";
+        case '\\': return "\'\\\\\'";
+        default: return std::string("'")+(char)input+std::string("'");
+    } else switch( input ) {
+        case ' ': return "\' \'";
+        case '\n': return "\'\\n\'";
+        case '\r': return "\'\\r\'";
+        case '\t': return "\'\\t\'";
+        default: return std::to_string(input);
+    }
+}
+
 std::string print(fsm_state rules ) {
     std::string code;
     std::vector<int> tail;
@@ -242,9 +257,9 @@ std::string print(fsm_state rules ) {
         while( inputs.size() ) {
             auto input = range(inputs);
             if( input.size() == 1 ) {
-                cond = replace(cond, {{"%cond", std::to_string(input[0]) + " == m_pre or %cond"}} );
+                cond = replace(cond, {{"%cond", print(input[0]) + " == m_pre or %cond"}} );
             } else {
-                cond = replace(cond, {{"%cond", "( " + std::to_string(input.front()) + " <= m_pre and m_pre <= " + std::to_string(input.back()) + " ) or %cond"}});
+                cond = replace(cond, {{"%cond", "( " + print(input.front()) + " <= m_pre and m_pre <= " + print(input.back()) + " ) or %cond"}});
             }
         }
         cond = replace(cond, {{"or %cond", ""}});
