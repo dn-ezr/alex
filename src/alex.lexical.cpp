@@ -255,8 +255,8 @@ std::string print(fsm_state rules ) {
     if( rules.count(-7) ) code += s16 + "if( 'A' <= m_pre and m_pre <= 'Z' ) " + print(rules[-7]);
     if( rules.count(-6) ) code += s16 + "if( 'a' <= m_pre and m_pre <= 'z' ) " + print(rules[-6]);
     if( rules.count(-5) ) code += s16 + "if( 1 <= m_pre and m_pre <= 127 ) " + print(rules[-5]);
-    if( rules.count(-2) ) code += s16 + print(rules[-2]);
-    else code += s16 + "accept(1, 0, true);";
+    if( rules.count(-2) ) code += s16 + "if( 0 < m_pre ) " + print(rules[-2]);
+    code += s16 + "accept(1, 0, false);";
     return code;
 }
 
