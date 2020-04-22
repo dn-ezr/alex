@@ -115,7 +115,7 @@ tokens context::perform( std::istream& is , std::ostream& os ) {
             else if( state->count(-7) and pre.id <= 'Z' and pre.id >= 'A' ) run(-7);
             else if( state->count(-6) and pre.id <= 'z' and pre.id >= 'a' ) run(-6);
             else if( state->count(-5) and pre.id <= 127 and pre.id >= 1 ) run(-5);
-            else if( state->count(-2) ) run(-2);
+            else if( state->count(-2) and pre.id > 0 ) run(-2);
             else throw std::runtime_error("invalid input "+std::to_string(pre.id));
             if( state->count(states[-1].state) and state[states[-1].state].size() == 0 )
                 throw std::runtime_error("invalid input "+std::to_string(pre.id));
