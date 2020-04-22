@@ -183,7 +183,7 @@ std::string lex::genctxd( const std::string& lang ) {
     return replace(code_lexical_hpp, {{"%l", lang}});
 }
 
-std::string print( fsm_program& prog ) {
+std::string print( fsm_program& prog, lex& l ) {
     static auto _goto = tree::reach( root, (char*)"goto");
     static auto _into = tree::reach( root, (char*)"into");
     static auto _end = tree::reach( root, (char*)"end");
@@ -207,17 +207,25 @@ std::string print( fsm_program& prog ) {
             {"%arg0", std::to_string((long)args[0])}
         });
     } else if( cmd == _accept_m ) {
+        auto arg1 = std::to_string((long)args[1]);
+        auto id = (long)args[1];
+        if( id > 0 ) arg1 = "VT::"+replace(l[(long)args[1]].name,{{":","::"}});
+        else if( id < 0 ) arg1 = "-VT::"+replace(l[-(long)args[1]].name,{{":","::"}});
         return replace(inst3, {
             {"%cmd", "accept"},
             {"%arg0", std::to_string((long)args[0])},
-            {"%arg1", std::to_string((long)args[1])},
+            {"%arg1", arg1},
             {"%arg2", "false"}
         });
     } else if( cmd == _accept_p ) {
+        auto arg1 = std::to_string((long)args[1]);
+        auto id = (long)args[1];
+        if( id > 0 ) arg1 = "VT::"+replace(l[(long)args[1]].name,{{":","::"}});
+        else if( id < 0 ) arg1 = "-VT::"+replace(l[-(long)args[1]].name,{{":","::"}});
         return replace(inst3, {
             {"%cmd", "accept"},
             {"%arg0", std::to_string((long)args[0])},
-            {"%arg1", std::to_string((long)args[1])},
+            {"%arg1", arg1},
             {"%arg2", "true"}
         });
     } else {
@@ -240,16 +248,16 @@ std::string print( int input ) {
     }
 }
 
-std::string print(fsm_state rules ) {
+std::string print(fsm_state rules, lex& l ) {
     std::string code;
     std::vector<int> tail;
     static auto s16 = "\n" + std::string(" ")*16;
     std::map<std::string,std::vector<int>> reverse;
 
-    if( rules.count(-4) ) code += s16 + print(rules[-4]);
+    if( rules.count(-4) ) code += s16 + print(rules[-4], l);
     for( auto& [input, prog] : rules )
         if( input != -4 and input != -2 )
-            if( input >= -1 ) reverse[print(prog)].push_back(input);
+            if( input >= -1 ) reverse[print(prog, l)].push_back(input);
             else tail.push_back(input);
 
     for( auto& [prog,inputs] : reverse ) {
@@ -265,12 +273,12 @@ std::string print(fsm_state rules ) {
         cond = replace(cond, {{"or %cond", ""}});
         code += s16 + cond + prog;
     }
-    if( rules.count(-9) ) code += s16 + "if( m_pre == ' ' or m_pre == '\\t' or m_pre == '\\n' or m_pre == '\\r' ) " + print(rules[-9]);
-    if( rules.count(-8) ) code += s16 + "if( '0' <= m_pre and m_pre <= '9' ) " + print(rules[-8]);
-    if( rules.count(-7) ) code += s16 + "if( 'A' <= m_pre and m_pre <= 'Z' ) " + print(rules[-7]);
-    if( rules.count(-6) ) code += s16 + "if( 'a' <= m_pre and m_pre <= 'z' ) " + print(rules[-6]);
-    if( rules.count(-5) ) code += s16 + "if( 1 <= m_pre and m_pre <= 127 ) " + print(rules[-5]);
-    if( rules.count(-2) ) code += s16 + "if( 0 < m_pre ) " + print(rules[-2]);
+    if( rules.count(-9) ) code += s16 + "if( m_pre == ' ' or m_pre == '\\t' or m_pre == '\\n' or m_pre == '\\r' ) " + print(rules[-9], l);
+    if( rules.count(-8) ) code += s16 + "if( '0' <= m_pre and m_pre <= '9' ) " + print(rules[-8], l);
+    if( rules.count(-7) ) code += s16 + "if( 'A' <= m_pre and m_pre <= 'Z' ) " + print(rules[-7], l);
+    if( rules.count(-6) ) code += s16 + "if( 'a' <= m_pre and m_pre <= 'z' ) " + print(rules[-6], l);
+    if( rules.count(-5) ) code += s16 + "if( 1 <= m_pre and m_pre <= 127 ) " + print(rules[-5], l);
+    if( rules.count(-2) ) code += s16 + "if( 0 < m_pre ) " + print(rules[-2], l);
     code += s16 + "accept(1, 0, false);";
     return code;
 }
@@ -280,7 +288,7 @@ std::string lex::genctxi( const std::string& lang ) {
     auto dfa = compile();
     static auto s12 = "\n" + std::string(" ")*12;
     std::map<std::string,std::vector<int>> reverse;
-    for( auto& [state,inputs] : dfa ) reverse[print(inputs)].push_back(state);
+    for( auto& [state,inputs] : dfa ) reverse[print(inputs, *this)].push_back(state);
     for( auto& [rules,states] : reverse ) {
         code += s12;
         for( auto state : states ) code += "case " + std::to_string(state) + ": ";
