@@ -171,17 +171,20 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
     long end = 0;
     std::set<int> ends;
     machine[start];
-    std::function<void(int,std::set<int>,std::set<int>)> proc = [&]( int e, std::set<int> es, std::set<int> history ) {
+    std::function<std::set<int>(int,std::set<int>,std::set<int>)> proc = [&]( int e, std::set<int> es, std::set<int> history ) {
         e = machine.forword(e);
-        machine[e][-4] = {{go,{(long)start}}};
+        std::set<int> ret;
+        if( e ) machine[e][-4] = {{go,{(long)start}}};
         for( auto ae : es ) {
             ae = machine.forword(ae);
             if( history.count(ae) ) continue;
             history.insert(ae);
-            if( !machine[ae].count(-1) ) machine[ae][-2] = {{go,{(long)start}}};
+            if( machine[ae].count(-2) ) ret.insert(ae);
+            else machine[ae][-2] = {{go,{(long)start}}};
             auto [ie, ies] = content[0].attach( machine, ae);
-            proc( ie, ies, history );
+            ret.merge(proc( ie, ies, history ));
         }
+        return ret;
     };
     switch( type ) {
         case type_t::character: {
@@ -268,14 +271,14 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
         case type_t::any: {
             end = start;
             auto [e,es] = content[0].attach( machine, start);
-            proc(e, es, {});
+            ends = proc(e, es, {});
         } break;
         case type_t::more: {
             auto [be,bes] = content[0].attach( machine, start);
             end = start = be;
-            //ends = bes;
             auto [e,es] = content[0].attach( machine, start);
-            proc(e, es, {});
+            es.merge(bes);
+            ends = proc(e, es, {});
         }break;
         case type_t::sequence: {
             for( auto expr : content ) {
@@ -341,9 +344,9 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start, int accept
     auto cmd_accept = tree::reach(root, (char*)"accept-");
     auto [reach,branchs] = attach( machine, start );
     if( reach == 0 and branchs.empty() ) return {0,{}};
-    machine[reach][-2] += {{cmd_accept, {1L, (long)accept}}};
+    if( !machine.count(-2) ) machine[reach][-2] = {{cmd_accept, {1L, (long)accept}}};
     for( auto br : branchs )
-            machine[br][-2] += {{cmd_accept, {1L, (long)accept}}};
+            if( !machine[br].count(-2) ) machine[br][-2] += {{cmd_accept, {1L, (long)accept}}};
     if( start == 1 ) machine.optimize();
     return {reach, branchs};
 }
