@@ -7,8 +7,8 @@ namespace alex {
 
 #define mkcmd( _name, _prop, body ) { __LINE__, (command_desc){ name: #_name, args: _prop, proc: []( vstack& stack, const chainz<json>& args ) -> std::string{body}}},
 
-#define isdefined( __var ) if( !stack.var.count(__var) ) throw std::runtime_error("bad label " + (std::string)__var + ", variable undefined")
-#define isinteger( __var ) if( !stack.var[__var].is(json::integer) ) throw std::runtime_error("bad variable " + (std::string)__var + ", wrong data type")
+#define isdefined( __var ) if( !stack.var.count((std::string)__var) ) throw std::runtime_error("bad label " + (std::string)__var + ", variable undefined")
+#define isinteger( __var ) if( !stack.var[(std::string)__var].is(json::integer) ) throw std::runtime_error("bad variable " + (std::string)__var + ", wrong data type")
 
 extern const std::map<int,command_desc> commands = {
     mkcmd( drop, "",
@@ -39,17 +39,17 @@ extern const std::map<int,command_desc> commands = {
         if( args[1].is(json::integer) ) 
             stack.n = (long)args[1];
         else if( args[1].is(json::string) ) {
-            isdefined( args[1] );
+            isdefined((std::string) args[1] );
             isinteger( args[1] );
-            stack.n = (long)stack.var[args[1]];
+            stack.n = (long)stack.var[(std::string)args[1]];
         }
 
         if( args[0].is(json::integer) )
             stack.s = (long)args[0];
         else if( args[0].is(json::string) ) {
-            isdefined( args[0] );
+            isdefined((std::string) args[0] );
             isinteger( args[0] );
-            stack.s = (long)stack.var[args[0]];
+            stack.s = (long)stack.var[(std::string)args[0]];
         }
         stack.action = vstack::accept;
         return "";
@@ -59,17 +59,17 @@ extern const std::map<int,command_desc> commands = {
         if( args[1].is(json::integer) ) 
             stack.n = (long)args[1];
         else if( args[1].is(json::string) ) {
-            isdefined( args[1] );
+            isdefined((std::string) args[1] );
             isinteger( args[1] );
-            stack.n = (long)stack.var[args[1]];
+            stack.n = (long)stack.var[(std::string)args[1]];
         }
 
         if( args[0].is(json::integer) )
             stack.s = (long)args[0];
         else if( args[0].is(json::string) ) {
-            isdefined( args[0] );
+            isdefined((std::string) args[0] );
             isinteger( args[0] );
-            stack.s = (long)stack.var[args[0]];
+            stack.s = (long)stack.var[(std::string)args[0]];
         }
         stack.action = vstack::accept;
         return "";
@@ -98,7 +98,7 @@ extern const std::map<int,command_desc> commands = {
                 strcpy(stack.mem+addr, str.c_str() );
             }
         } else if( args[0].is(json::string) ) {
-            auto& var = stack.var[args[0]];
+            auto& var = stack.var[(std::string)args[0]];
             var = args[1];
         }
         return "+";
@@ -109,35 +109,35 @@ extern const std::map<int,command_desc> commands = {
             if( addr + sizeof(size_t) >= stack.memlen ) throw std::runtime_error("bad address: " + std::to_string(addr) + ", out of range");
             *(size_t*)(stack.mem+addr) = ((std::string)args[1]).size();
         } else if( args[0].is(json::string) ) {
-            auto& var = stack.var[args[0]];
+            auto& var = stack.var[(std::string)args[0]];
             var = (long)((std::string)args[1]).size();
         }
         return "+";
     )
     mkcmd( load, "nn",
-        if( !stack.var.count(args[1]) )
+        if( !stack.var.count((std::string)args[1]) )
             throw std::runtime_error("undefined variable " + (std::string)args[1]);
-        stack.var[args[0]] = stack.var[args[1]];
+        stack.var[(std::string)args[0]] = stack.var[(std::string)args[1]];
         return "+";
     )
     mkcmd( eval, "nnpn",
-        isdefined(args[1]);
-        isdefined(args[3]);
-        std::string op = args[2];
+        isdefined((std::string)args[1]);
+        isdefined((std::string)args[3]);
+        std::string op = (std::string)args[2];
         if( op == "." ) {
             std::string res;
-            if( stack.var[args[1]].is(json::string) ) res = (std::string)stack.var[args[1]];
-            else if( stack.var[args[1]].is(json::integer) ) res = (long)stack.var[args[1]];
-            if( stack.var[args[3]].is(json::string) ) res += (std::string)stack.var[args[3]];
-            else if( stack.var[args[3]].is(json::integer) ) res += (long)stack.var[args[3]];
-            stack.var[args[0]] = res;
+            if( stack.var[(std::string)args[1]].is(json::string) ) res = (std::string)stack.var[(std::string)args[1]];
+            else if( stack.var[(std::string)args[1]].is(json::integer) ) res = (long)stack.var[(std::string)args[1]];
+            if( stack.var[(std::string)args[3]].is(json::string) ) res += (std::string)stack.var[(std::string)args[3]];
+            else if( stack.var[(std::string)args[3]].is(json::integer) ) res += (long)stack.var[(std::string)args[3]];
+            stack.var[(std::string)args[0]] = res;
             return "+";
         }
         isinteger(args[1]);
         isinteger(args[3]);
-        auto left = (long)stack.var[args[1]];
-        auto right = (long)stack.var[args[3]];
-        auto& res = stack.var[args[0]];
+        auto left = (long)stack.var[(std::string)args[1]];
+        auto right = (long)stack.var[(std::string)args[3]];
+        auto& res = stack.var[(std::string)args[0]];
         switch( op[0] ) {
             case '+': res = left + right; break;
             case '-': res = left - right; break;
@@ -152,25 +152,25 @@ extern const std::map<int,command_desc> commands = {
         return "+";
     )
     mkcmd( j.cmp, "nnpn",
-        isdefined(args[1]);
-        isdefined(args[3]);
+        isdefined((std::string)args[1]);
+        isdefined((std::string)args[3]);
         long ia;
         long ib;
         std::string sa;
         std::string sb;
         int sit = 0;
-        std::string op = args[2];
-        if( stack.var[args[1]].is(json::integer) ) {
-            ia = (long)stack.var[args[1]];
-        } else if( stack.var[args[1]].is(json::string) ) {
+        std::string op = (std::string)args[2];
+        if( stack.var[(std::string)args[1]].is(json::integer) ) {
+            ia = (long)stack.var[(std::string)args[1]];
+        } else if( stack.var[(std::string)args[1]].is(json::string) ) {
             sit = 0x0001'0000;
-            sa = (std::string)stack.var[args[1]];
+            sa = (std::string)stack.var[(std::string)args[1]];
         }
-        if( stack.var[args[2]].is(json::integer) ) {
-            ib = (long)stack.var[args[2]];
-        } else if( stack.var[args[2]].is(json::string) ) {
+        if( stack.var[(std::string)args[2]].is(json::integer) ) {
+            ib = (long)stack.var[(std::string)args[2]];
+        } else if( stack.var[(std::string)args[2]].is(json::string) ) {
             sit |= 0x0010'0000;
-            sb = (std::string)stack.var[args[2]];
+            sb = (std::string)stack.var[(std::string)args[2]];
         }
         if( sit == 0x00100000 or sit == 0x00010000 ) throw std::runtime_error("operand types mismatch");
         if( op == "<" ) sit += 0;
@@ -195,7 +195,7 @@ extern const std::map<int,command_desc> commands = {
             case 5: res = (ia == ib); break;
             case 0x110000+5: res = ( sa == sb); break;
         }
-        if( res ) return args[0];
+        if( res ) return (std::string)args[0];
         else return "+";
     )
 };

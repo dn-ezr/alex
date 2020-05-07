@@ -227,7 +227,7 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
                 case family_t::any:
                     if( machine[start].count(-5) ) patch(-5);
                     else machine[start][-5] = prog;
-                    for( int i = 1; i < 128; i++ ) patch(i);
+                    for( int i = 1; i < 255; i++ ) patch(i);
                     break;
                 case family_t::space:
                     if( machine[start].count(-9) ) patch(-9);
@@ -283,13 +283,27 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
         case type_t::sequence: {
             for( auto expr : content ) {
                 std::set<int> next;
-                auto [e, es] = expr.attach( machine, start);
-                end = e;
-                next.merge(es);
-                for( auto start : ends ) {
-                    auto [e,es] = expr.attach(machine, start);
-                    if( e ) machine[e][-4] = {{go,{(long)end}}};
+                if( start ) {
+                    auto [e, es] = expr.attach( machine, start);
+                    end = e;
                     next.merge(es);
+                } else {
+                    end = 0;
+                }
+                for( auto start : ends ) {
+                    if( expr.type == type_t::any ) {
+                        expr.type = type_t::more;
+                        auto [e,es] = expr.attach(machine,start);
+                        if( !end ) end = e;
+                        if( e and !machine[e].count(-2) ) machine[e][-2] = {{go,{(long)end}}};
+                        next.insert(start);
+                        next.merge(es);
+                    } else {
+                        auto [e,es] = expr.attach(machine, start);
+                        if( !end ) end = e;
+                        if( end and !machine[e].count(-2) ) machine[e][-2] = {{go,{(long)end}}};
+                        next.merge(es);
+                    }
                 }
                 ends = next;
                 start = end;
@@ -344,9 +358,9 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start, int accept
     auto cmd_accept = tree::reach(root, (char*)"accept-");
     auto [reach,branchs] = attach( machine, start );
     if( reach == 0 and branchs.empty() ) return {0,{}};
-    if( !machine.count(-2) ) machine[reach][-2] = {{cmd_accept, {1L, (long)accept}}};
-    if( !machine.count(-1) ) machine[reach][-1] = {{cmd_accept, {1L, (long)accept}}};
-    if( !machine.count(0) ) machine[reach][-0] = {{cmd_accept, {1L, (long)accept}}};
+    machine[reach][-2] = {{cmd_accept, {1L, (long)accept}}};
+    machine[reach][-1] = {{cmd_accept, {1L, (long)accept}}};
+    machine[reach][0] = {{cmd_accept, {1L, (long)accept}}};
     for( auto br : branchs ) {
             if( !machine[br].count(-2) ) machine[br][-2] = {{cmd_accept, {1L, (long)accept}}};
             if( !machine[br].count(-1) ) machine[br][-1] = {{cmd_accept, {1L, (long)accept}}};

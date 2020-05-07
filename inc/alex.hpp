@@ -244,9 +244,8 @@ std::ostream& operator << ( std::ostream&, regex& );
  * @struct lexi : 词法规则
  * @desc :
  *  一条词法规则描述了如何从输入流中匹配一个词汇
- *  以及词汇拥有怎样的后缀时才能被接受
  *  一条正确的词汇最好以正数为id
- *  词汇不能要求负数id词汇作为前缀，因为负数前缀表示此前缀可选
+ *  词法规则可以包含后缀模式，当后缀模式被匹配，词法将作为对应的错误记号被接受
  */
 struct lexi {
 
@@ -324,6 +323,92 @@ class lex : public std::map<int,lexi> {
         std::string genctxi( const std::string& lang );
 };
 std::ostream& operator << ( std::ostream&, lex& );
+
+/**
+ * @struct ebnf : 巴克斯瑙尔范式
+ * @desc :
+ *  描述一种产生式 */
+struct ebnf {
+
+    /**
+     * @enum type_t : 巴克斯瑙尔范式的类型 */
+    enum class type_t {
+
+        /**
+         * @item sequence : 串 */
+        sequence,
+
+        /**
+         * @item string : 字符串 */
+        string,
+
+        /**
+         * @item token : 记号 */
+        token,
+
+        /**
+         * @item options : 选项集 */
+        options,
+
+        /**
+         * @item optional : 可选的 */
+        optional,
+
+        /**
+         * @item any : 可以出现任意多次 */
+        any,
+
+        /**
+         * @item empty : 空的表达式 */
+        empty
+    };
+
+    /**
+     * @member type : 范式类型 */
+    type_t type;
+
+    /**
+     * @member value : 范式的值 */
+    std::string value;
+
+    /**
+     * @member sub : 范式所包含的子式 */
+    chainz<ebnf> sub;
+};
+
+/**
+ * @struct synti : 文法规则单元
+ * @desc :
+ *  文法规则描述一种非终结符 */
+struct synti {
+
+    /**
+     * @member name : 非终结符名称 */
+    std::string name;
+
+    /**
+     * @member pattern : 产生式 */
+    ebnf pattern;
+
+    /**
+     * @member suffix : 积极预判 */
+    ebnf suffix;
+
+    /**
+     * @member refuse : 消极预判 */
+    ebnf refuse;
+};
+
+/**
+ * @struct syntax : 文法规则
+ * @desc :
+ *  文法用于描述一种语言的语法规则 */
+struct syntax : public chainz<synti> {
+     
+    /**
+     * @method compile : 从输入流编译文法规则 */
+    static syntax compile( std::istream& is );
+};
 
 /**
  * @class context : 上下文环境

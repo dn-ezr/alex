@@ -4,7 +4,7 @@ SHELL = /bin/bash
 INC =$(wildcard inc/*.hpp)
 SRC =$(wildcard src/*.cpp)
 OBJ =$(SRC:src/%.cpp=obj/%.o)
-CC = g++-8
+CC = g++-9
 OOPT = -Iinc -I../utils/inc -std=gnu++17 -g -c
 LOPT = -L../utils/arc -lutils
 TARGET = bin/alex

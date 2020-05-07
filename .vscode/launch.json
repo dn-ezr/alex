@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/alex",
-            "args": ["-l", "alioth" ,"../alioth-compiler/doc/lexical.alex"],
+            "args": ["-l", "cpp" ,"test/alioth.alex"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
