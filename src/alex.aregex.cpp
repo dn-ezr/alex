@@ -5,11 +5,11 @@
 
 namespace alex {
 
-regex regex::extract( std::istream& is, bool inner ) {
+aregex aregex::extract( std::istream& is, bool inner ) {
     int state = 1;
     bool stay = false;
     int escape_target;
-    regex reg;
+    aregex reg;
 
     while( state > 0 ) {
 
@@ -120,10 +120,10 @@ regex regex::extract( std::istream& is, bool inner ) {
                     state = 0;
                 }
             } else switch( pre ) {
-                case '?': reg = regex{content:{reg},type: type_t::optional}; break;
-                case '*': reg = regex{content:{reg},type: type_t::any}; break;
-                case '+': reg = regex{content:{reg},type: type_t::more}; break;
-                case '|': reg = regex{content:{reg},type: type_t::options}; state = 10; break;
+                case '?': reg = aregex{content:{reg},type: type_t::optional}; break;
+                case '*': reg = aregex{content:{reg},type: type_t::any}; break;
+                case '+': reg = aregex{content:{reg},type: type_t::more}; break;
+                case '|': reg = aregex{content:{reg},type: type_t::options}; state = 10; break;
                 default: state = 0; stay = true; break;
             } break;
             case 9: {
@@ -148,9 +148,9 @@ regex regex::extract( std::istream& is, bool inner ) {
     return reg;
 }
 
-regex regex::compile( std::istream& is, char terminator ) {
+aregex aregex::compile( std::istream& is, char terminator ) {
 
-    regex reg;
+    aregex reg;
     reg.type = type_t::sequence;
 
     while( is.peek() != terminator ) {
@@ -164,10 +164,9 @@ regex regex::compile( std::istream& is, char terminator ) {
     return reg;
 }
 
-std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
-    command_desc::init();
-    auto go = tree::reach(root, (char*)"goto");
-    auto into = tree::reach(root, (char*)"into");
+std::tuple<int,std::set<int>> aregex::attach( fsm& machine, int start ) {
+    auto go = fsm::cmd_goto;
+    auto into = fsm::cmd_into;
     long end = 0;
     std::set<int> ends;
     machine[start];
@@ -214,7 +213,7 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
         case type_t::family: {
             machine[end = machine.genstate()];
             auto prog = fsm_program{{into,{end}}};
-            auto reg = regex{type: type_t::character};
+            auto reg = aregex{type: type_t::character};
             auto patch = [&](int i) {
                 if( !machine[start].count(i) ) return;
                 auto ep = machine.findexit(start,i);
@@ -328,7 +327,7 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
             }
         } break;
         case type_t::range: {
-            auto reg = regex{type:type_t::character};
+            auto reg = aregex{type:type_t::character};
             machine[end = machine.genstate()];
             for( auto i = content[0].value; i <= content[1].value; i++ ) {
                 reg.value = i;
@@ -353,24 +352,21 @@ std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start ) {
     return {end,ends};
 }
 
-std::tuple<int,std::set<int>> regex::attach( fsm& machine, int start, int accept ) {
-    command_desc::init();
-    auto cmd_accept = tree::reach(root, (char*)"accept-");
+std::tuple<int,std::set<int>> aregex::attach( fsm& machine, int start, int accept ) {
+    auto cmd_accept = fsm::cmd_accept_without;
     auto [reach,branchs] = attach( machine, start );
     if( reach == 0 and branchs.empty() ) return {0,{}};
     machine[reach][-2] = {{cmd_accept, {1L, (long)accept}}};
     machine[reach][-1] = {{cmd_accept, {1L, (long)accept}}};
-    machine[reach][0] = {{cmd_accept, {1L, (long)accept}}};
     for( auto br : branchs ) {
             if( !machine[br].count(-2) ) machine[br][-2] = {{cmd_accept, {1L, (long)accept}}};
             if( !machine[br].count(-1) ) machine[br][-1] = {{cmd_accept, {1L, (long)accept}}};
-            if( !machine[br].count(0) ) machine[br][0] = {{cmd_accept, {1L, (long)accept}}};
     }
     if( start == 1 ) machine.optimize();
     return {reach, branchs};
 }
 
-void regex::print( std::ostream& os ) {
+void aregex::print( std::ostream& os ) {
     switch( type ) {
         case type_t::character:
             switch( value ) {
@@ -439,7 +435,7 @@ void regex::print( std::ostream& os ) {
     }
 }
 
-std::ostream& operator << ( std::ostream& os, regex& reg ) {
+std::ostream& operator << ( std::ostream& os, aregex& reg ) {
     reg.print(os);
     return os;
 }

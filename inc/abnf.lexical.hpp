@@ -1,19 +1,14 @@
-#ifndef __alex_code_lexical_hpp_cpp__
-#define __alex_code_lexical_hpp_cpp__
 
-#include "alex.internal.hpp"
-
-namespace alex {
-
-const std::string code_lexical_hpp = R"...(
 #ifndef __lexical__
 #define __lexical__
 
 #include <istream>
 #include <functional>
-#include "%tkd"
+#include "alex.hpp"
 
-namespace %l {
+namespace ABNF {
+
+using namespace alex;
 
 /**
  * @class LexicalContext : 词法分析上下文 */
@@ -94,11 +89,6 @@ class LexicalContext {
          * @return int : 返回分析的字节数，不包括结束符 */
         int perform( std::istream& source );
 };
-
-}
-
-#endif
-)...";
 
 }
 

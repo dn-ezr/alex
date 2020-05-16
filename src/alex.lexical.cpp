@@ -2,6 +2,7 @@
 #define __alex_lexical_cpp__
 
 #include "alex.internal.hpp"
+#include "str.hpp"
 
 namespace alex {
 
@@ -88,11 +89,11 @@ lex lex::compile( std::istream& is ) {
                     case '/': state = 10; break;
                 } break;
                 case 10: {
-                    rules[id].match = regex::compile(is);
+                    rules[id].match = aregex::compile(is);
                     state = 11;
                 } break;
                 case 11: {
-                    rules[id].suffix = regex::compile(is);
+                    rules[id].suffix = aregex::compile(is);
                     state = 1;
                 } break;
             }
@@ -123,17 +124,17 @@ fsm lex::compile() {
     }
 
     diagram.optimize();
-    diagram[1][-1] = {{tree::reach(root,(char*)"end"),{}}};
+    diagram[1][-1] = {{fsm::cmd_end,{}}};
 
     return diagram;
 }
 
-std::map<std::string, std::string> lex::gencpp( const std::string& lang ) {
+std::map<std::string, std::string> lex::gencpp( const std::string& lang, std::map<std::string,std::string> mapper ) {
     std::map<std::string, std::string> files;
     files["vt.hpp"] = genvtd(lang);
-    files["token.hpp"] = gentokend(lang);
-    files["lexical.hpp"] = genctxd(lang);
-    files["lexical.cpp"] = genctxi(lang);
+    files["token.hpp"] = gentkd(lang);
+    files["lexical.hpp"] = genctxd(lang, mapper);
+    files["lexical.cpp"] = genctxi(lang, mapper);
     return files;
 }
 
@@ -163,7 +164,7 @@ std::string lex::genvtd( const std::string& lang ) {
     return "#ifndef __vt__\n#define __vt__\n\n" + print(lang+"::VT",global,0) + "\n#endif";
 }
 
-std::string lex::gentokend( const std::string& lang ) {
+std::string lex::gentkd( const std::string& lang ) {
     std::string ret;
     size_t i = 0;
     while( true ) {
@@ -179,16 +180,21 @@ std::string lex::gentokend( const std::string& lang ) {
     return ret;
 }
 
-std::string lex::genctxd( const std::string& lang ) {
-    return replace(code_lexical_hpp, {{"%l", lang}});
+std::string lex::genctxd( const std::string& lang, std::map<std::string,std::string> mapper ) {
+    return replace(code_lexical_hpp, {
+        {"%l", lang},
+        {"%tkd", mapper.count("tkd")?mapper.at("tkd"):"token.hpp"},
+        {"%vtd", mapper.count("vtd")?mapper.at("vtd"):"vt.hpp"},
+        {"%ctxd", mapper.count("ctxd")?mapper.at("ctxd"):"lexical.hpp"}
+    });
 }
 
 std::string print( fsm_program& prog, lex& l ) {
-    static auto _goto = tree::reach( root, (char*)"goto");
-    static auto _into = tree::reach( root, (char*)"into");
-    static auto _end = tree::reach( root, (char*)"end");
-    static auto _accept_p = tree::reach( root, (char*)"accept+");
-    static auto _accept_m = tree::reach( root, (char*)"accept-");
+    static auto _goto = fsm::cmd_goto; 
+    static auto _into = fsm::cmd_into;
+    static auto _end = fsm::cmd_end;
+    static auto _accept_p = fsm::cmd_accept_with;
+    static auto _accept_m = fsm::cmd_accept_without;
     static auto inst1 = "{ %cmd(%arg0); break; }";
     static auto inst2 = "{ %cmd(%arg0, %arg1); break; }";
     static auto inst3 = "{ %cmd(%arg0, %arg1, %arg2); break; }";
@@ -257,7 +263,7 @@ std::string print(fsm_state rules, lex& l ) {
     if( rules.count(-4) ) code += s16 + print(rules[-4], l);
     for( auto& [input, prog] : rules )
         if( input != -4 and input != -2 )
-            if( input >= -1 ) reverse[print(prog, l)].push_back(input);
+            if( input >= 0 ) reverse[print(prog, l)].push_back(input);
             else tail.push_back(input);
 
     for( auto& [prog,inputs] : reverse ) {
@@ -279,11 +285,12 @@ std::string print(fsm_state rules, lex& l ) {
     if( rules.count(-6) ) code += s16 + "if( 'a' <= m_pre and m_pre <= 'z' ) " + print(rules[-6], l);
     if( rules.count(-5) ) code += s16 + "if( 1 <= m_pre and m_pre <= 255 ) " + print(rules[-5], l);
     if( rules.count(-2) ) code += s16 + "if( 0 < m_pre ) " + print(rules[-2], l);
+    if( rules.count(-1) ) code += s16 + "if( 0 == m_pre or -1 == m_pre ) " + print(rules[-1], l);
     code += s16 + "accept(-1, 0, false);";
     return code;
 }
 
-std::string lex::genctxi( const std::string& lang ) {
+std::string lex::genctxi( const std::string& lang, std::map<std::string,std::string> mapper ) {
     std::string code;
     auto dfa = compile();
     static auto s12 = "\n" + std::string(" ")*12;
@@ -297,7 +304,10 @@ std::string lex::genctxi( const std::string& lang ) {
     }
     return replace(code_lexical_cpp, {
         {"%l", lang},
-        {"%dfa", code}
+        {"%dfa", code},
+        {"%tkd", mapper.count("tkd")?mapper.at("tkd"):"token.hpp"},
+        {"%vtd", mapper.count("vtd")?mapper.at("vtd"):"vt.hpp"},
+        {"%ctxd", mapper.count("ctxd")?mapper.at("ctxd"):"lexical.hpp"}
     });
 }
 

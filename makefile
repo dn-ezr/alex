@@ -29,3 +29,7 @@ install: $(TARGET)
 	sudo cp bin/alex /usr/bin/alex
 
 .PHONY: init clean install
+
+syntax:
+	./bin/alex -l test/abnf.alex --lang ABNF --to src/ --gen ctxi --map ctxd abnf.lexical.hpp --map tkd alex.hpp --map vtd abnf.vt.hpp --map ctxi alex.abnf.lexical.cpp
+	./bin/alex -l test/abnf.alex --lang ABNF --to inc/ --gen vtd --map vtd abnf.vt.hpp

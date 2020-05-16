@@ -6,7 +6,7 @@
 namespace alex {
 
 void token::clear() {
-    id = begl = begc = endl = endc = -1;
+    id = bl = bc = el = ec = -1;
     tx.clear();
 }
 

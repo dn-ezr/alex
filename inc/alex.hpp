@@ -9,8 +9,11 @@
 #include <list>
 #include <set>
 #include "jsonz.hpp"
+#include "trie.hpp"
 
 namespace alex {
+
+using namespace godgnidoc;
 
 /**
  * @strct token : 词法符号
@@ -22,17 +25,17 @@ struct token {
     /** @member id : 符号ID */
     int id;
     
-    /** @member begl : 起始行 */
-    int begl;
+    /** @member bl : 起始行 */
+    int bl;
 
-    /** @member begc : 起始列 */
-    int begc;
+    /** @member bc : 起始列 */
+    int bc;
 
-    /** @member endl : 结束行 */
-    int endl;
+    /** @member el : 结束行 */
+    int el;
 
-    /** @member endc : 结束列 */
-    int endc;
+    /** @member ec : 结束列 */
+    int ec;
 
     /** @member tx : 书写内容 */
     std::string tx;
@@ -51,6 +54,23 @@ using tokens = chainz<token>;
 class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>>>> {
 
     public:
+        using cmd_t = int;
+        static constexpr cmd_t cmd_drop = 0;
+        static constexpr cmd_t cmd_input = 1;
+        static constexpr cmd_t cmd_into = 2;
+        static constexpr cmd_t cmd_goto = 3;
+        static constexpr cmd_t cmd_stay = 4;
+        static constexpr cmd_t cmd_accept_with = 5;
+        static constexpr cmd_t cmd_accept_without = 6;
+        static constexpr cmd_t cmd_end = 128; /** 值小于end的指令都是出度 */
+        static constexpr cmd_t cmd_eval = 255;
+
+    public:
+
+        static std::string cmd2str( cmd_t);
+        static cmd_t str2cmd( const std::string&);
+        static trie<cmd_t> cmds();
+        static std::string cmd_args( cmd_t );
 
         /**
          * @static-method compile : 从文本编译
@@ -127,12 +147,12 @@ class fsm : public std::map<int,std::map<int,chainz<std::tuple<int,chainz<json>>
 std::ostream& operator << (std::ostream&, fsm& );
 
 /**
- * @struct regex : Alex正则表达式
+ * @struct aregex : Alex正则表达式
  * @desc :
  *  Alex正则表达式用于在Alex词法规则中描述词法。
  *  Alex正则表达式可以被转化为Alex有穷状态机跳转图。
  */
-struct regex {
+struct aregex {
 
     public:
         /**
@@ -188,7 +208,7 @@ struct regex {
     public:
 
     /** @member content: 表达式内容 */
-    chainz<regex> content;
+    chainz<aregex> content;
 
     /** @member value: 表达式值 */
     int value;
@@ -202,7 +222,7 @@ struct regex {
          * @function extract : 提取
          * @desc :
          *  从输入流提取一个最小的单位 */
-        static regex extract( std::istream&, bool inner = false );
+        static aregex extract( std::istream&, bool inner = false );
     
     public:
 
@@ -213,7 +233,7 @@ struct regex {
          *  正则表达式到第一个‘/’而结束。
          *  编译过程不会消耗掉用于结束正则文法的字符。
          */
-        static regex compile( std::istream&, char terminator = '/' );
+        static aregex compile( std::istream&, char terminator = '/' );
 
         /**
          * @method attach : 绑定
@@ -238,7 +258,7 @@ struct regex {
 
         void print( std::ostream& );
 };
-std::ostream& operator << ( std::ostream&, regex& );
+std::ostream& operator << ( std::ostream&, aregex& );
 
 /**
  * @struct lexi : 词法规则
@@ -253,10 +273,10 @@ struct lexi {
     std::string name;
 
     /** @member match : 匹配规则 */
-    regex match;
+    aregex match;
 
     /** @member suffix : 后缀规则,如果后缀规则被满足，将接受为错误记号 */
-    regex suffix;
+    aregex suffix;
 };
 std::ostream& operator << ( std::ostream&, lexi& );
 
@@ -287,8 +307,13 @@ class lex : public std::map<int,lexi> {
          * @desc :
          *  产生用于分析词法的CPP代码
          * @param lang : 语言名称
+         * @param mapper : 文件映射表
+         *  vtd -- vt.hpp
+         *  tkd -- token.hpp
+         *  ctxd -- lexical.hpp
+         *  ctxi -- lexical.cpp
          */
-        std::map<std::string,std::string> gencpp( const std::string& lang );
+        std::map<std::string,std::string> gencpp( const std::string& lang, std::map<std::string,std::string> mapper );
 
         /**
          * @method genvtd : 产生词汇表定义
@@ -304,7 +329,7 @@ class lex : public std::map<int,lexi> {
          *  产生词法符号定义
          * @param lang : 语言名称
          */
-        std::string gentokend( const std::string& lang );
+        std::string gentkd( const std::string& lang );
 
         /**
          * @method genctxd : 产生词法分析上下文定义
@@ -312,7 +337,7 @@ class lex : public std::map<int,lexi> {
          *  产生词法分析上下文定义
          * @param lang : 语言名称
          */
-        std::string genctxd( const std::string& lang );
+        std::string genctxd( const std::string& lang, std::map<std::string,std::string> mapper );
 
         /**
          * @method genctxi : 产生词法上下文实现
@@ -320,15 +345,16 @@ class lex : public std::map<int,lexi> {
          *  产生词法上下文实现
          * @param lang : 语言名称
          */
-        std::string genctxi( const std::string& lang );
+        std::string genctxi( const std::string& lang, std::map<std::string,std::string> mapper );
 };
 std::ostream& operator << ( std::ostream&, lex& );
 
 /**
- * @struct ebnf : 巴克斯瑙尔范式
+ * @struct abnf : 巴克斯瑙尔范式
  * @desc :
+ *  Alex Scoped BNF 根据Alex设计需求定制的BNF
  *  描述一种产生式 */
-struct ebnf {
+struct abnf {
 
     /**
      * @enum type_t : 巴克斯瑙尔范式的类型 */
@@ -365,7 +391,7 @@ struct ebnf {
 
     /**
      * @member type : 范式类型 */
-    type_t type;
+    type_t type = type_t::empty;
 
     /**
      * @member value : 范式的值 */
@@ -373,8 +399,22 @@ struct ebnf {
 
     /**
      * @member sub : 范式所包含的子式 */
-    chainz<ebnf> sub;
+    chainz<abnf> sub;
+
+    /**
+     * @member compile : 从输入流编译范式
+     * @desc :
+     *  输入流遇到SEMI,EM,QM,CLOSE...均停止，不吸收结束符 */
+    static abnf compile( chainz<token>::iterator& it );
+
+    private:
+        /**
+         * @member compile : 编译
+         * @desc :
+         * @param inner : 用于指定文法是否嵌套在OR语句中 */
+        static abnf compile( chainz<token>::iterator& it, bool inner );
 };
+std::ostream& operator<< (std::ostream&, const abnf&);
 
 /**
  * @struct synti : 文法规则单元
@@ -383,63 +423,43 @@ struct ebnf {
 struct synti {
 
     /**
-     * @member name : 非终结符名称 */
-    std::string name;
-
-    /**
      * @member pattern : 产生式 */
-    ebnf pattern;
+    abnf pattern;
 
     /**
      * @member suffix : 积极预判 */
-    ebnf suffix;
+    abnf suffix;
 
     /**
      * @member refuse : 消极预判 */
-    ebnf refuse;
+    abnf refuse;
 };
+std::ostream& operator<< (std::ostream&, const synti&);
 
 /**
  * @struct syntax : 文法规则
  * @desc :
  *  文法用于描述一种语言的语法规则 */
-struct syntax : public chainz<synti> {
+struct syntax : public std::map<std::string, synti> {
+
+    /**
+     * @member pairs : 配对
+     * @desc : 配对记号用来分割语法作用域，简化后续分析 */
+    std::map<int,int> pairs;
      
     /**
      * @method compile : 从输入流编译文法规则 */
     static syntax compile( std::istream& is );
+
+    /**
+     * @method compile : 从词法记号序列编译文法规则 */
+    static syntax compile( chainz<token>::iterator& it );
+
+    /**
+     * @method genvnd : 产生非终结符定义 */
+    static std::string genvnd( const std::string& lang );
 };
-
-/**
- * @class context : 上下文环境
- * @desc :
- *  上线文环境用于运行有限状态机
- */
-class context {
-
-    private:
-        const fsm::value_type::second_type* state = nullptr;
-        const fsm& diag;
-
-        std::map<std::string,json> var;
-        char* mem = nullptr;
-        int memlen = 0;
-
-        int line, column;
-        token buf;
-
-    private:
-        bool initiate();
-
-    public:
-        context( const alex::fsm& diagram );
-        
-        tokens perform( std::istream&, std::ostream& );
-
-        tokens perform( tokens, std::ostream& );
-
-        std::string printlex();
-};
+std::ostream& operator<< (std::ostream&, const syntax&);
 
 }
 

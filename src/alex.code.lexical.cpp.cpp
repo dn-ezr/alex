@@ -9,9 +9,9 @@ const std::string code_lexical_cpp = R"...(
 #ifndef __lexical_cpp__
 #define __lexical_cpp__
 
-#include "vt.hpp"
-#include "token.hpp"
-#include "lexical.hpp"
+#include "%vtd"
+#include "%tkd"
+#include "%ctxd"
 
 namespace %l {
 

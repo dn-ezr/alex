@@ -5,14 +5,69 @@
 #include <set>
 #include <functional>
 #include <sstream>
+#include "trie.hpp"
 
 namespace alex {
 
-tree* root = nullptr;
+std::string fsm::cmd2str( cmd_t cmd ) {
+    switch( cmd ) {
+        case cmd_drop: return "drop";
+        case cmd_input: return "input";
+        case cmd_into: return "into";
+        case cmd_goto: return "goto";
+        case cmd_stay: return "stay";
+        case cmd_accept_with: return "accept+";
+        case cmd_accept_without: return "accept-";
+        case cmd_end: return "end";
+        case cmd_eval: return "eval";
+        default: throw std::runtime_error("alex::fsm::cmd2str(): bad cmd");
+    }
+}
+
+fsm::cmd_t fsm::str2cmd( const std::string& str ) {
+    if( str == "drop" ) return cmd_drop;
+    else if( str == "input" ) return cmd_input;
+    else if( str == "into" ) return cmd_into;
+    else if( str == "goto" ) return cmd_goto;
+    else if( str == "stay" ) return cmd_stay;
+    else if( str == "accept+" ) return cmd_accept_with;
+    else if( str == "accept-" ) return cmd_accept_without;
+    else if( str == "end" ) return cmd_end;
+    else if( str == "eval" ) return cmd_eval;
+    else throw std::runtime_error("alex::fsm::str2cmd(): bad cmd str");
+}
+
+trie<fsm::cmd_t> fsm::cmds() {
+    trie<cmd_t> t;
+    t.set("drop", cmd_drop );
+    t.set("input", cmd_input );
+    t.set("into", cmd_into );
+    t.set("goto", cmd_goto );
+    t.set("stay", cmd_stay );
+    t.set("accept+", cmd_accept_with );
+    t.set("accept-", cmd_accept_without );
+    t.set("end", cmd_end );
+    t.set("eval", cmd_eval);
+    return t;
+}
+
+std::string fsm::cmd_args( cmd_t cmd ) {
+    switch( cmd ) {
+        case cmd_drop: return "";
+        case cmd_input: return "";
+        case cmd_into: return "i";
+        case cmd_goto: return "i";
+        case cmd_stay: return "i";
+        case cmd_accept_with: return "ll";
+        case cmd_accept_without: return "ll";
+        case cmd_end: return "";
+        case cmd_eval: return "l";
+        default: throw std::runtime_error("alex::fsm::args(): bad cmd");
+    }
+}
 
 fsm fsm::compile( std::istream& is ) {
     fsm diagram;
-    command_desc::init();
 
     int line = 1;
     int column = 1;
@@ -22,7 +77,8 @@ fsm fsm::compile( std::istream& is ) {
     int target;
     std::string str;
     char ascii;
-    const tree* node = nullptr;
+    auto root = cmds();
+    const trie<cmd_t>* node = nullptr;
     std::string args;
     chainz<json> params;
 
@@ -34,7 +90,7 @@ fsm fsm::compile( std::istream& is ) {
         int state;
         int input;
         int range;
-        int code;
+        cmd_t code;
         std::set<int> states;
         std::set<int> inputs;
         bool multi_input;
@@ -106,7 +162,7 @@ fsm fsm::compile( std::istream& is ) {
             } break;
             case 12: switch( pre ) {
                 case ' ': case '\t': case '\r': case '\n': break;
-                default: node = root; state = 13; stay = true; break;
+                default: node = &root; state = 13; stay = true; break;
                 case ')':
                     if( var.multi_cmd )
                         if( var.multi_input ) (var.inputs.clear()), (state = 4);
@@ -116,8 +172,8 @@ fsm fsm::compile( std::istream& is ) {
                     break;
             } break;
             case 13:
-                if( node->sub.count(pre) ) node = &node->sub.at(pre);
-                else if( node->tag ) (var.code = node->tag), (state = 14), (args = commands.at(node->tag).args), (stay = true), (params.clear());
+                if( node->sub(pre) ) node = node->sub(pre);
+                else if( node->get() ) (var.code = *node->get()), (state = 14), (args = cmd_args(var.code)), (stay = true), (params.clear());
                 else state = -13;
                 break;
             case 14:
@@ -304,7 +360,7 @@ std::string fsm::print( fsm_program& prog ) {
     for( auto [cmd, args] : prog ) {
         if( mc ) os << "    ";
         else os << " ";
-        os << commands.at(cmd).name << " ";
+        os << cmd2str(cmd) << " ";
         for( auto arg : args ) os << arg.toJsonString() << " ";
         if( mc ) os << std::endl;
     }
@@ -331,12 +387,10 @@ int fsm::genstate() {
 }
 
 fsm_instruction* fsm::findexit( int state, int input ) {
-    command_desc::init();
     if( !count(state) or !at(state).count(input) ) return nullptr;
-    auto end = tree::reach(root, (char*)"end");
     auto& prog = at(state)[input];
     for( auto& inst : prog )
-        if( std::get<0>(inst) < end ) return &inst;
+        if( std::get<0>(inst) < cmd_end ) return &inst;
     return nullptr;
 }
 
@@ -349,13 +403,11 @@ int fsm::findout( int state, int input ) {
 int fsm::optimize() {
     std::map<int,int> in;
     std::map<int,std::vector<std::tuple<int,int,int>>> out;
-    auto end = tree::reach(root, (char*)"end");
-    auto gt = tree::reach(root, (char*)"goto");
     for( auto& [state, inputs] : *this ) {
         if( in.count(state) == 0 ) in[state] = 0;
         for( auto& [input, prog] : inputs ) {
             for( auto& inst : prog ) {
-                if( std::get<0>(inst) < end && std::get<1>(inst).size() ) {
+                if( std::get<0>(inst) < cmd_end && std::get<1>(inst).size() ) {
                     auto& target = std::get<1>(inst)[0];
                     target = (long)forword((long)target);
                     if( in.count((long)target) ) in[(long)target] += 1;
@@ -399,11 +451,10 @@ int fsm::optimize() {
 
 int fsm::forword( int state ) {
     int ret = state;
-    auto go = tree::reach(root, (char*)"goto");
     while( count(ret) ) {
         auto& st = at(ret);
         if( st.empty() ) break;
-        if( st.count(-4) and st[-4].size() == 1 and std::get<0>(st[-4][0]) == go ) {
+        if( st.count(-4) and st[-4].size() == 1 and std::get<0>(st[-4][0]) == cmd_goto ) {
             ret = (long)(std::get<1>(st[-4][0])[0]);
         } else {
             if( st.size() != 1 ) break;
@@ -411,7 +462,7 @@ int fsm::forword( int state ) {
             if( in != -2 and in != -4 ) break;
             if( prog.size() != 1 ) break;
             auto& [cmd, arg] = prog[0];
-            if( cmd != go ) break;
+            if( cmd != cmd_goto ) break;
             ret = (long)arg[0];
         }
     }

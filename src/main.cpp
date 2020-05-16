@@ -6,98 +6,151 @@
 
 int main( int argc, char **argv ) {
     if( argc < 2 ) return 1;
-    std::string input;
+    std::string lexical_input;
+    std::string syntax_input;
     std::string lang;
-    std::set<std::string> generate;
     std::string to_path;
+    std::set<std::string> generate;
+    std::map<std::string,std::string> mapper;
     for( auto i = 1; argv[i] != 0; i++ ) {
         if( !strcmp("-l", argv[i]) ) {
+            if( !lexical_input.empty() ) {
+                std::cout << "Target for lexical has been specified already" << std::endl;
+                return 1;
+            }
+            if( !argv[++i] ) {
+                std::cout << "Argument missing for command -l" << std::endl;
+            }
+            lexical_input = argv[i];
+        } else if( !strcmp("-s", argv[i]) ) {
+            if( !syntax_input.empty() ) {
+                std::cout << "Target for syntax has been specified already" << std::endl;
+                return 1;
+            }
+            if( !argv[++i] ) {
+                std::cout << "Argument missing for command -s" << std::endl;
+            }
+            syntax_input = argv[i];
+        } else if( !strcmp("--lang", argv[i]) ) {
             if( lang.size() ) {
                 std::cout << "The language name has been specified already" << std::endl;
                 return 1;
             }
             if( !argv[++i] ) {
-                std::cout << "Argument missing for command -l" << std::endl;
+                std::cout << "Argument missing for command --lang" << std::endl;
                 return 1;
             }
             lang = std::string(argv[i]);
-        } else if( !strcmp("-t", argv[i]) ) {
+        } else if( !strcmp("--to", argv[i]) ) {
             if( to_path.size() ) {
                 std::cout << "The target path has been specified already" << std::endl;
                 return 1;
             }
             if( !argv[++i] ) {
-                std::cout << "Argument missing for command -t" << std::endl;
+                std::cout << "Argument missing for command --to" << std::endl;
                 return 1;
             }
-            to_path = std::string(argv[i]);
-        } else if( !strcmp("-g", argv[i]) ) {
+            to_path = argv[i];
+        } else if( !strcmp("--gen", argv[i]) ) {
             if( !argv[++i] ) {
-                std::cout << "Argument missing for command -g" << std::endl;
+                std::cout << "Argument missing for command --gen" << std::endl;
                 return 1;
             }
             std::string temp = argv[i];
-            if( temp != "lexical.cpp" and temp != "lexical.hpp" and temp != "token.hpp" and temp != "vt.hpp" ) {
+            if( temp != "ctxi" and temp != "ctxd" and temp != "tkd" and temp != "vtd" and temp != "all" ) {
                 std::cout << "unavailable generate target" << std::endl;
                 return 1;
             }
             generate.insert(temp);
-        } else if( !strcmp("-h", argv[i]) ) {
-            std::cout << R"...(alex : generate lexical parser from rule definitions
+        } else if( !strcmp("--map", argv[i]) ) {
+            if( !argv[++i] ) {
+                std::cout << "Argument missing for command --map" << std::endl;
+                return 1;
+            }
+            std::string temp = argv[i];
+            if( temp != "ctxi" and temp != "ctxd" and temp != "tkd" and temp != "vtd" and temp != "all" ) {
+                std::cout << "unavailable generate target" << std::endl;
+                return 1;
+            }
+            if( !argv[++i] ) {
+                std::cout << "Argument missing for command --map" << std::endl;
+                return 1;
+            }
+            mapper[temp] = argv[i];
+        } else if( !strcmp("-h", argv[i]) or !strcmp("--help", argv[i]) ) {
+            std::cout << R"...(alex : generate lexical/syntax parser from rule definitions
 Usage: alex [OPTIONS] input_file
-    -l <lang> specify the language name
-    -t <path> specify the output path, or the output will flow to stdio
-    -g <name> specify which output you need, this command can be used multiple times
+    -l <fname> specify the target to process lexical rules
+    -s <fname> specify the target to process syntax rules
+    --lang <lang> specify the language name
+    --to <path> specify the output path, or the output will flow to stdio
+    --gen <name> specify which output you need, this command can be used multiple times
         available names as follow:
-            lexical.cpp
-            lexical.hpp
-            token.hpp
-            vt.hpp
+            ctxi -- lexical.cpp
+            ctxd -- lexical.hpp
+            tkd -- token.hpp
+            vtd -- vt.hpp
+    --map <name> <file-name> remap the output file name for specific output file.
+        available name as follow:
+            ctxi -- lexical.cpp
+            ctxd -- lexical.hpp
+            tkd -- token.hpp
+            vtd -- vt.hpp
         if you don't specify any of then, defaulty I will print the Alex DFA on standard output stream
-    -h show this help page
+    -h,--help show this help page
 )...";
             return 0;
         } else {
-            if( !input.empty() ) {
-                std::cout << "The lexical input has been specified already" << std::endl;
-                return 1;
-            }
-            input = std::string(argv[i]);
+            std::cout << "Unknown command " << argv[i] << " see --help for help" << std::endl;
+            return 1;
         }
     }
-    if( input.empty() ) {
+    if( lexical_input.empty() ) {
         std::cout << "No input specified" << std::endl;
         return 1;
     }
-    if( lang.empty() ) {
-        std::cout << "No language name specified " << std::endl;
+    if( generate.size() and lang.empty() ) {
+        std::cout << "No language name specified" << std::endl;
         return 1;
     }
-    auto is = std::ifstream(input);
+    auto is = std::ifstream(lexical_input);
     if( !is.good() ) {
         std::cout << "Cannot open the input file for read" << std::endl;
         return 1;
     }
+    
     auto lex = alex::lex::compile(is);
-    if( generate.empty() ) {
+    if( generate.empty() and syntax_input.empty() ) {
         auto dfa = lex.compile();
+        if( lang.size() ) std::cout << "/** lexical rule definitions for language " << lang << " generated by alex ver2.0.1 */" << std::endl;
         std::cout << dfa << std::endl;
     } else {
-        for( auto& fname : generate ) {
+        if( !mapper.count("ctxd") ) mapper["ctxd"] = "lexical.hpp";
+        if( !mapper.count("ctxi") ) mapper["ctxi"] = "lexical.cpp";
+        if( !mapper.count("vtd") ) mapper["vtd"] = "vt.hpp";
+        if( !mapper.count("tkd") ) mapper["tkd"] = "token.hpp";
+        for( auto& mod : generate ) {
             std::string gen;
-            if( fname == "lexical.hpp" ) gen = lex.genctxd(lang);
-            else if( fname == "lexical.cpp" ) gen = lex.genctxi(lang);
-            else if( fname == "token.hpp" ) gen = lex.gentokend(lang);
-            else if( fname == "vt.hpp" ) gen = lex.genvtd(lang);
+            if( mod == "ctxd" ) gen = lex.genctxd(lang,mapper);
+            else if( mod == "ctxi" ) gen = lex.genctxi(lang,mapper);
+            else if( mod == "tkd" ) gen = lex.gentkd(lang);
+            else if( mod == "vtd" ) gen = lex.genvtd(lang);
             if( to_path.empty() ) {
                 std::cout << gen << std::endl;
             } else {
-                auto os = std::ofstream(to_path+fname);
+                auto os = std::ofstream(to_path+mapper[mod]);
                 if( os.good() ) os << gen;
-                else std::cout << "failed generating file " << (to_path+fname) << std::endl;
+                else std::cout << "failed generating file " << (to_path+mapper[mod]) << std::endl;
             }
         }
     }
+    
+    if( syntax_input.size() ) {
+        auto is = std::ifstream(syntax_input);
+        auto syn = alex::syntax::compile(is);
+        std::cout << syn << std::endl;
+    }
+
     return 0;
 }
 
