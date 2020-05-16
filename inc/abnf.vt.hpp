@@ -3,7 +3,7 @@
 
 namespace ABNF::VT {
     constexpr int $ = 0;
-    constexpr int NAME = 2;
+    constexpr int LABEL = 2;
     constexpr int SPACE = 3;
     constexpr int ASSIGN = 4;
     constexpr int STRING = 5;
@@ -12,20 +12,21 @@ namespace ABNF::VT {
     constexpr int COLON = 8;
     constexpr int QM = 9;
     constexpr int EM = 10;
-    constexpr int DOT = 11;
-    constexpr int AT = 12;
-    constexpr int OR = 13;
-    constexpr int STAR = 14;
-    constexpr int COMMENT = 21;
+    constexpr int GT = 11;
+    constexpr int DOT = 12;
+    constexpr int AT = 13;
+    constexpr int OR = 14;
+    constexpr int STAR = 15;
+    constexpr int COMMENT = 22;
     namespace C {
-        constexpr int SEQ = 18;
-        constexpr int OPT = 19;
-        constexpr int ANY = 20;
+        constexpr int SEQ = 19;
+        constexpr int OPT = 20;
+        constexpr int ANY = 21;
     }
     namespace O {
-        constexpr int SEQ = 15;
-        constexpr int OPT = 16;
-        constexpr int ANY = 17;
+        constexpr int SEQ = 16;
+        constexpr int OPT = 17;
+        constexpr int ANY = 18;
     }
 }
 

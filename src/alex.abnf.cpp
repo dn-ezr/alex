@@ -42,7 +42,7 @@ abnf abnf::compile( chainz<token>::iterator& it, bool inner ) {
                         }
                         state = 4;
                     } break;
-                    case VT::NAME: {
+                    case VT::LABEL: {
                         if( pattern.type == abnf::type_t::sequence ) {
                             pattern.sub.push({
                                 .type = abnf::type_t::token,
@@ -62,7 +62,7 @@ abnf abnf::compile( chainz<token>::iterator& it, bool inner ) {
             case 2:
                 switch( it->id ) {
                     case VT::SPACE: break;
-                    case VT::NAME: 
+                    case VT::LABEL: 
                         if( pattern.type == abnf::type_t::sequence )
                             pattern.sub[-1].value += " " + it->tx;
                         else
@@ -94,7 +94,7 @@ abnf abnf::compile( chainz<token>::iterator& it, bool inner ) {
                 switch( it->id ) {
                     case VT::SPACE: break;
                     case VT::C::ANY: case VT::C::OPT: case VT::C::SEQ: case VT::EM: case VT::QM: case VT::SEMI: state = 0; break;
-                    case VT::O::ANY:case VT::O::OPT:case VT::O::SEQ:case VT::STRING:
+                    case VT::O::ANY:case VT::O::OPT:case VT::O::SEQ:case VT::STRING:case VT::LABEL:
                         stay = true; 
                         [[fallthrough]];
                     case VT::COMMA: 
@@ -183,13 +183,13 @@ syntax syntax::compile( chainz<token>::iterator& it ) {
             case 1:
                 switch( it->id ) {
                     case VT::SPACE: break;
-                    case VT::NAME: name = it->tx; state = 2; break;
+                    case VT::LABEL: name = it->tx; state = 2; break;
                     default: serr(*it); break;
                 } break;
             case 2:
                 switch( it->id ) {
                     case VT::SPACE: break;
-                    case VT::NAME: name += " " + it->tx; break;
+                    case VT::LABEL: name += " " + it->tx; break;
                     case VT::ASSIGN: state = 3; break;
                     default: serr(*it); break;
                 } break;

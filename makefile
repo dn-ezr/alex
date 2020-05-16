@@ -31,5 +31,5 @@ install: $(TARGET)
 .PHONY: init clean install
 
 syntax:
-	./bin/alex -l test/abnf.alex --lang ABNF --to src/ --gen ctxi --map ctxd abnf.lexical.hpp --map tkd alex.hpp --map vtd abnf.vt.hpp --map ctxi alex.abnf.lexical.cpp
-	./bin/alex -l test/abnf.alex --lang ABNF --to inc/ --gen vtd --map vtd abnf.vt.hpp
+	./bin/alex -l doc/abnf.alex --lang ABNF --to src/ --gen ctxi --map ctxd abnf.lexical.hpp --map tkd alex.hpp --map vtd abnf.vt.hpp --map ctxi alex.abnf.lexical.cpp
+	./bin/alex -l doc/abnf.alex --lang ABNF --to inc/ --gen vtd --map vtd abnf.vt.hpp

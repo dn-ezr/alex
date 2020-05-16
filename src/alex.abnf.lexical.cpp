@@ -48,43 +48,44 @@ int LexicalContext::perform( std::istream& source ) {
         
         switch( m_state ) {
             
-            case 22: 
-                if( '*' == m_pre ){ _into(23); break; }
-                accept(-1, 0, false);
-            break;
             case 23: 
-                if( '*' == m_pre ){ _into(25); break; }
-                if( 1 <= m_pre and m_pre <= 255 ) { _into(23); break; }
+                if( '*' == m_pre ){ _into(24); break; }
                 accept(-1, 0, false);
             break;
-            case 25: 
-                if( '/' == m_pre ){ _into(24); break; }
-                if( 0 < m_pre ) { _goto(23); break; }
+            case 24: 
+                if( '*' == m_pre ){ _into(26); break; }
+                if( 1 <= m_pre and m_pre <= 255 ) { _into(24); break; }
+                accept(-1, 0, false);
+            break;
+            case 26: 
+                if( '/' == m_pre ){ _into(25); break; }
+                if( 0 < m_pre ) { _goto(24); break; }
                 accept(-1, 0, false);
             break;
             case 2: 
                 if( ':' == m_pre or '_' == m_pre ){ _into(2); break; }
                 if( 'A' <= m_pre and m_pre <= 'Z' ) { _into(2); break; }
                 if( 'a' <= m_pre and m_pre <= 'z' ) { _into(2); break; }
-                if( 0 < m_pre ) { accept(1, VT::NAME, false); break; }
-                if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::NAME, false); break; }
+                if( 0 < m_pre ) { accept(1, VT::LABEL, false); break; }
+                if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::LABEL, false); break; }
                 accept(-1, 0, false);
             break;
             case 1: 
                 if( '?' == m_pre ){ _into(10); break; }
                 if( '!' == m_pre ){ _into(11); break; }
-                if( '.' == m_pre ){ _into(12); break; }
-                if( '@' == m_pre ){ _into(13); break; }
-                if( '|' == m_pre ){ _into(14); break; }
-                if( '*' == m_pre ){ _into(15); break; }
-                if( '(' == m_pre ){ _into(16); break; }
-                if( '[' == m_pre ){ _into(17); break; }
-                if( '{' == m_pre ){ _into(18); break; }
-                if( ')' == m_pre ){ _into(19); break; }
+                if( '>' == m_pre ){ _into(12); break; }
+                if( '.' == m_pre ){ _into(13); break; }
+                if( '@' == m_pre ){ _into(14); break; }
+                if( '|' == m_pre ){ _into(15); break; }
+                if( '*' == m_pre ){ _into(16); break; }
+                if( '(' == m_pre ){ _into(17); break; }
+                if( '[' == m_pre ){ _into(18); break; }
+                if( '{' == m_pre ){ _into(19); break; }
                 if( ':' == m_pre or '_' == m_pre ){ _into(2); break; }
-                if( ']' == m_pre ){ _into(20); break; }
-                if( '}' == m_pre ){ _into(21); break; }
-                if( '/' == m_pre ){ _into(22); break; }
+                if( ')' == m_pre ){ _into(20); break; }
+                if( ']' == m_pre ){ _into(21); break; }
+                if( '}' == m_pre ){ _into(22); break; }
+                if( '/' == m_pre ){ _into(23); break; }
                 if( '=' == m_pre ){ _into(4); break; }
                 if( '\"' == m_pre ){ _into(5); break; }
                 if( ',' == m_pre ){ _into(8); break; }
@@ -106,22 +107,22 @@ int LexicalContext::perform( std::istream& source ) {
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::ASSIGN, false); break; }
                 accept(-1, 0, false);
             break;
-            case 13: 
+            case 14: 
                 if( 0 < m_pre ) { accept(1, VT::AT, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::AT, false); break; }
                 accept(-1, 0, false);
             break;
-            case 21: 
+            case 22: 
                 if( 0 < m_pre ) { accept(1, VT::C::ANY, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::C::ANY, false); break; }
                 accept(-1, 0, false);
             break;
-            case 20: 
+            case 21: 
                 if( 0 < m_pre ) { accept(1, VT::C::OPT, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::C::OPT, false); break; }
                 accept(-1, 0, false);
             break;
-            case 19: 
+            case 20: 
                 if( 0 < m_pre ) { accept(1, VT::C::SEQ, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::C::SEQ, false); break; }
                 accept(-1, 0, false);
@@ -131,12 +132,12 @@ int LexicalContext::perform( std::istream& source ) {
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::COMMA, false); break; }
                 accept(-1, 0, false);
             break;
-            case 24: 
+            case 25: 
                 if( 0 < m_pre ) { accept(1, VT::COMMENT, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::COMMENT, false); break; }
                 accept(-1, 0, false);
             break;
-            case 12: 
+            case 13: 
                 if( 0 < m_pre ) { accept(1, VT::DOT, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::DOT, false); break; }
                 accept(-1, 0, false);
@@ -146,22 +147,27 @@ int LexicalContext::perform( std::istream& source ) {
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::EM, false); break; }
                 accept(-1, 0, false);
             break;
-            case 18: 
+            case 12: 
+                if( 0 < m_pre ) { accept(1, VT::GT, false); break; }
+                if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::GT, false); break; }
+                accept(-1, 0, false);
+            break;
+            case 19: 
                 if( 0 < m_pre ) { accept(1, VT::O::ANY, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::O::ANY, false); break; }
                 accept(-1, 0, false);
             break;
-            case 17: 
+            case 18: 
                 if( 0 < m_pre ) { accept(1, VT::O::OPT, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::O::OPT, false); break; }
                 accept(-1, 0, false);
             break;
-            case 16: 
+            case 17: 
                 if( 0 < m_pre ) { accept(1, VT::O::SEQ, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::O::SEQ, false); break; }
                 accept(-1, 0, false);
             break;
-            case 14: 
+            case 15: 
                 if( 0 < m_pre ) { accept(1, VT::OR, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::OR, false); break; }
                 accept(-1, 0, false);
@@ -176,7 +182,7 @@ int LexicalContext::perform( std::istream& source ) {
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::SEMI, false); break; }
                 accept(-1, 0, false);
             break;
-            case 15: 
+            case 16: 
                 if( 0 < m_pre ) { accept(1, VT::STAR, false); break; }
                 if( 0 == m_pre or -1 == m_pre ) { accept(1, VT::STAR, false); break; }
                 accept(-1, 0, false);

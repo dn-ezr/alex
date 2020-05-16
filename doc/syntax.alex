@@ -1,0 +1,41 @@
+/** 基于ABNF的文法规定 */
+
+/** 元规则lang，用于指定语言名称，同时指定用于表示语言的非终结符 */
+> lang = "ABNF" : syntax;
+
+/** 元规则base，用于指定语法结构的根基类名 */
+> base = "node";
+
+/** 元规则lex，用于指定词法规定文件 */
+> lex = "./abnf.alex";
+
+/** 元规则drop，用于指定当没有模式匹配某个词法符号时，丢弃它 */
+> drop = SPACE, COMMENT;
+
+/** 元规则pair，用于指定在任何语境下都必须成对出现的词法符号 */
+> pairs =
+    [O:SEQ, C:SEQ]
+    [O:OPT, C:OPT]
+    [O:ANY, C:ANY]
+;
+
+metas:lang : meta = GT, "lang", ASSIGN, STRING@lang, name@syntax, SEMI;
+metas:base : meta = GT, "base", ASSIGN, STRING@base, SEMI;
+metas:lex : meta = GT, "lex", ASSIGN, STRING@path, SEMI;
+metas:drop : meta = GT, "drop", ASSIGN, LABEL@tokens {COMMA, LABEL@tokens};
+metas:pairs : meta = GT, "pair", ASSIGN {meta:pair@pairs};
+metas:pair : meta = O:OPT, LABEL@open, COMMA, LABEL@close, C:OPT;
+
+syntax = {synti@items|meta@metas};
+synti = name@name [COLON, name@super] ASSIGN, abnf [EM abnf|QM abnf] SEMI;
+name = LABEL@labels {SPACE, LABEL@labels};
+
+abnf token : abnf = name@value[AT, LABEL@label];
+abnf string : abnf = STRING@value[AT, LABEL@label];
+abnf optional : abnf = O:OPT, abnf@subs, C:OPT;
+abnf any : abnf = O:ANY, abnf@subs, C:ANY;
+abnf sub : abnf = [O:SEQ] abnf@subs [C:SEQ];
+inner:a = abnf token@abnf | abnf string@abnf | abnf optional@abnf | abnf any@abnf | abnf sub@abnf;
+abnf sequence : abnf = inner:a@subs [COMMA] inner:a@subs {[COMMA] inner:a@subs};
+inner:b = inner:a@abnf | abnf sequence@abnf;
+abnf options : abnf = inner:b@subs, OR, inner:b@subs {OR, inner:b@subs};

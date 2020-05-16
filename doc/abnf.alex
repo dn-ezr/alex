@@ -1,0 +1,23 @@
+/* This is a page of lexical source */
+
+2 LABEL = /(\u|\l|_|:)+//
+3 SPACE = /\s+//
+4 ASSIGN = /=//
+5 STRING = /"([^"\\]|(\\.))*"//
+6 COMMA = /,//
+7 SEMI = /;//
+8 COLON = /://
+9 QM = /\?//
+10 EM = /!//
+11 GT = />//
+12 DOT = /\.//
+13 AT = /@//
+14 OR = /\|//
+15 STAR = /\*//
+16 O:SEQ = /\(//
+17 O:OPT = /\[//
+18 O:ANY = /{//
+19 C:SEQ = /\)//
+20 C:OPT = /\]//
+21 C:ANY = /}//
+22 COMMENT = /\/\*.*\*\///
